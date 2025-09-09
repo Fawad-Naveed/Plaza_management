@@ -1,0 +1,1622 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
+import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { FileText, Plus, Zap, Wrench, Search, Eye, Download, Loader2, Edit, Trash2, Printer } from "lucide-react"
+import { clientDb, type Business, type Bill as DBBill, type MeterReading, type Floor, getInformation, type Information } from "@/lib/database"
+
+declare global {
+  interface Window {
+    jsPDF: any
+  }
+}
+
+interface BillGenerationProps {
+  activeSubSection: string
+}
+
+export function BillGeneration({ activeSubSection }: BillGenerationProps) {
+  const [businesses, setBusinesses] = useState<Business[]>([])
+  const [bills, setBills] = useState<DBBill[]>([])
+  const [floors, setFloors] = useState<Floor[]>([])
+  const [meterReadings, setMeterReadings] = useState<MeterReading[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const [newBill, setNewBill] = useState({
+    businessId: "",
+    billType: "electricity" as "electricity" | "maintenance" | "combined" | "rent",
+    electricityUnits: "",
+    electricityRate: "8.5",
+    maintenanceAmount: "",
+    maintenanceDescription: "",
+    waterCharges: "",
+    otherCharges: "",
+    month: new Date().toLocaleString("default", { month: "long" }),
+    year: new Date().getFullYear().toString(),
+    dueDate: "",
+  })
+
+  // Determine if we're in rent management mode
+  const isRentManagement = activeSubSection === "bill-generate" || activeSubSection === "bill-all"
+  
+  // Determine if we're in electricity management mode
+  const isElectricityManagement = activeSubSection === "electricity-generate" || activeSubSection === "electricity-all"
+
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedBillForPrint, setSelectedBillForPrint] = useState<DBBill | null>(null)
+  const [editingBill, setEditingBill] = useState<DBBill | null>(null)
+  const [viewingBill, setViewingBill] = useState<DBBill | null>(null)
+  const [deletingBill, setDeletingBill] = useState<DBBill | null>(null)
+  const [isEditMode, setIsEditMode] = useState(false)
+  
+  // Add tab state for rent management
+  const [billsSubTab, setBillsSubTab] = useState("all")
+
+  useEffect(() => {
+    loadBillData()
+    
+    // Set bill type based on management mode
+    if (isRentManagement) {
+      setNewBill(prev => ({ ...prev, billType: "rent" }))
+    } else if (isElectricityManagement) {
+      setNewBill(prev => ({ ...prev, billType: "electricity" }))
+    }
+  }, [isRentManagement, isElectricityManagement])
+
+  // Auto-populate rent amount when bill type is "rent" or in rent management mode and business is selected
+  useEffect(() => {
+    if ((newBill.billType === "rent" || isRentManagement) && newBill.businessId) {
+      const selectedBusiness = businesses.find(b => b.id === newBill.businessId)
+      if (selectedBusiness && selectedBusiness.rent_amount) {
+        setNewBill(prev => ({
+          ...prev,
+          maintenanceAmount: selectedBusiness.rent_amount.toString()
+        }))
+      }
+    }
+  }, [newBill.billType, newBill.businessId, businesses, isRentManagement])
+
+  const loadBillData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const [businessesResult, billsResult, floorsResult, meterReadingsResult] = await Promise.all([
+        clientDb.getBusinesses(),
+        clientDb.getBills(),
+        clientDb.getFloors(),
+        clientDb.getMeterReadings(),
+      ])
+
+      if (businessesResult.error) throw businessesResult.error
+      if (billsResult.error) throw billsResult.error
+      if (floorsResult.error) throw floorsResult.error
+      if (meterReadingsResult.error) throw meterReadingsResult.error
+
+      setBusinesses(businessesResult.data || [])
+      setBills(billsResult.data || [])
+      setFloors(floorsResult.data || [])
+      setMeterReadings(meterReadingsResult.data || [])
+    } catch (err) {
+      console.error("[v0] Error loading bill data:", err)
+      setError(err instanceof Error ? err.message : "Failed to load bill data")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const generateBillNumber = async (type: string) => {
+    const prefix = type === "electricity" ? "ELE" : type === "maintenance" ? "MAIN" : type === "rent" ? "RENT" : "COMB"
+    const year = new Date().getFullYear()
+
+    // Get all existing bills to find the highest number for this prefix and year
+    const { data: existingBills } = await clientDb.getBills()
+    const prefixPattern = `${prefix}-${year}-`
+
+    const existingNumbers = (existingBills || [])
+      .filter((b) => b.bill_number.startsWith(prefixPattern))
+      .map((b) => {
+        const numberPart = b.bill_number.replace(prefixPattern, "")
+        return Number.parseInt(numberPart, 10)
+      })
+      .filter((num) => !isNaN(num))
+
+    // Find the next available number
+    const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1
+
+    return `${prefix}-${year}-${nextNumber.toString().padStart(3, "0")}`
+  }
+
+  const calculateElectricityAmount = (units: number, rate: number) => {
+    return units * rate
+  }
+
+  const getBusinessName = (businessId: string) => {
+    const business = businesses.find((b) => b.id === businessId)
+    return business ? business.name : "Unknown Business"
+  }
+
+  const getBusinessShop = (businessId: string) => {
+    const business = businesses.find((b) => b.id === businessId)
+    return business ? business.shop_number : "Unknown Shop"
+  }
+
+  const getFloorName = (floorNumber: number) => {
+    const floor = floors.find((f) => f.floor_number === floorNumber)
+    return floor ? floor.floor_name : `Floor ${floorNumber}`
+  }
+
+  const getLatestMeterReading = (businessId: string) => {
+    const businessReadings = meterReadings
+      .filter((r) => r.business_id === businessId && r.meter_type === "electricity")
+      .sort((a, b) => new Date(b.reading_date).getTime() - new Date(a.reading_date).getTime())
+    return businessReadings[0]
+  }
+
+  const createBill = async () => {
+    if (newBill.businessId && newBill.billType && newBill.month && newBill.year && newBill.dueDate) {
+      try {
+        const business = businesses.find((b) => b.id === newBill.businessId)
+        if (!business) return
+
+        let electricityCharges = 0
+        let maintenanceCharges = 0
+        const waterCharges = isElectricityManagement ? 0 : (Number.parseFloat(newBill.waterCharges) || 0)
+        const otherCharges = isElectricityManagement ? 0 : (Number.parseFloat(newBill.otherCharges) || 0)
+
+        if (isElectricityManagement || newBill.billType === "electricity" || newBill.billType === "combined") {
+          const units = Number.parseFloat(newBill.electricityUnits) || 0
+          const rate = Number.parseFloat(newBill.electricityRate) || 0
+          electricityCharges = calculateElectricityAmount(units, rate)
+        }
+
+        if (newBill.billType === "maintenance" || newBill.billType === "combined") {
+          maintenanceCharges = Number.parseFloat(newBill.maintenanceAmount) || 0
+        }
+
+        if (newBill.billType === "rent" || isRentManagement) {
+          // For rent bills, use the rent amount from business data or manual input
+          maintenanceCharges = Number.parseFloat(newBill.maintenanceAmount) || business.rent_amount || 0
+        }
+
+        const totalAmount = electricityCharges + maintenanceCharges + waterCharges + otherCharges
+
+        const billNumber = await generateBillNumber(
+          isRentManagement ? "rent" : 
+          isElectricityManagement ? "electricity" : 
+          newBill.billType
+        )
+
+        const billData = {
+          business_id: newBill.businessId,
+          bill_number: billNumber,
+          bill_date: new Date().toISOString().split("T")[0],
+          due_date: newBill.dueDate,
+          rent_amount: business.rent_amount,
+          maintenance_charges: maintenanceCharges,
+          electricity_charges: electricityCharges,
+          water_charges: waterCharges,
+          other_charges: otherCharges,
+          total_amount: totalAmount + business.rent_amount,
+          status: "pending" as const,
+        }
+
+        const { error } = await clientDb.createBill(billData)
+        if (error) throw error
+
+        await loadBillData() // Reload data
+
+        setNewBill({
+          businessId: "",
+          billType: "electricity",
+          electricityUnits: "",
+          electricityRate: "8.5",
+          maintenanceAmount: "",
+          maintenanceDescription: "",
+          waterCharges: "",
+          otherCharges: "",
+          month: new Date().toLocaleString("default", { month: "long" }),
+          year: new Date().getFullYear().toString(),
+          dueDate: "",
+        })
+      } catch (err) {
+        console.error("[v0] Error creating bill:", err)
+        setError(err instanceof Error ? err.message : "Failed to create bill")
+      }
+    }
+  }
+
+
+
+  const downloadPDF = async (bill: DBBill) => {
+    try {
+      // Dynamically import jsPDF
+      const { jsPDF } = await import("jspdf")
+
+      const doc = new jsPDF()
+      const business = businesses.find((b) => b.id === bill.business_id)
+
+      // Get business information for branding
+      let businessInfo: Information | null = null
+      try {
+        businessInfo = await getInformation()
+      } catch (error) {
+        console.log("No business information found, using default branding")
+      }
+
+      let headerYPos = 20
+
+      // Add logo if available
+      if (businessInfo?.logo_url) {
+        try {
+          // Create an image element to load the logo
+          const img = new Image()
+          img.crossOrigin = "anonymous"
+
+          await new Promise((resolve, reject) => {
+            img.onload = resolve
+            img.onerror = reject
+            img.src = businessInfo.logo_url!
+          })
+
+          // Add logo to PDF (centered, 30x30 size)
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          canvas.width = 30
+          canvas.height = 30
+          ctx?.drawImage(img, 0, 0, 30, 30)
+
+          const logoDataUrl = canvas.toDataURL('image/png')
+          doc.addImage(logoDataUrl, 'PNG', 90, headerYPos - 5, 30, 30)
+          headerYPos += 35
+        } catch (logoError) {
+          console.log("Failed to load logo, proceeding without it")
+        }
+      }
+
+      // Header with business name or default
+      doc.setFontSize(20)
+      const businessName = businessInfo?.business_name || "PLAZA MANAGEMENT"
+      doc.text(businessName.toUpperCase(), 105, headerYPos, { align: "center" })
+
+      doc.setFontSize(14)
+      doc.text("Electricity & Maintenance Bill", 105, headerYPos + 10, { align: "center" })
+
+      // Add contact info if available
+      if (businessInfo?.contact_email || businessInfo?.contact_phone) {
+        doc.setFontSize(10)
+        let contactText = ""
+        if (businessInfo.contact_email) contactText += businessInfo.contact_email
+        if (businessInfo.contact_phone) {
+          if (contactText) contactText += " | "
+          contactText += businessInfo.contact_phone
+        }
+        doc.text(contactText, 105, headerYPos + 20, { align: "center" })
+        headerYPos += 10
+      }
+
+      // Bill details (adjust position based on header height)
+      const billDetailsYPos = headerYPos + 30
+      doc.setFontSize(12)
+      doc.text("Bill To:", 20, billDetailsYPos)
+      doc.text(getBusinessName(bill.business_id), 20, billDetailsYPos + 10)
+      doc.text(`Shop: ${getBusinessShop(bill.business_id)}`, 20, billDetailsYPos + 20)
+      doc.text(`${getFloorName(business?.floor_number || 1)}`, 20, billDetailsYPos + 30)
+
+      // Bill info (right side)
+      doc.text(`Bill No: ${bill.bill_number}`, 120, billDetailsYPos)
+      doc.text(`Date: ${bill.bill_date}`, 120, billDetailsYPos + 10)
+      doc.text(`Due Date: ${bill.due_date}`, 120, billDetailsYPos + 20)
+
+      // Charges breakdown (adjust position)
+      let yPos = billDetailsYPos + 50
+      doc.text("Charges Breakdown:", 20, yPos)
+      yPos += 10
+
+      doc.text(`Rent Amount: PKR ${bill.rent_amount.toFixed(2)}`, 20, yPos)
+      yPos += 10
+
+      if (bill.electricity_charges > 0) {
+        doc.text(`Electricity Charges: PKR ${bill.electricity_charges.toFixed(2)}`, 20, yPos)
+        yPos += 10
+      }
+
+      if (bill.maintenance_charges > 0) {
+        doc.text(`Maintenance Charges: PKR ${bill.maintenance_charges.toFixed(2)}`, 20, yPos)
+        yPos += 10
+      }
+
+      if (bill.water_charges > 0) {
+        doc.text(`Water Charges: PKR ${bill.water_charges.toFixed(2)}`, 20, yPos)
+        yPos += 10
+      }
+
+      if (bill.other_charges > 0) {
+        doc.text(`Other Charges: PKR ${bill.other_charges.toFixed(2)}`, 20, yPos)
+        yPos += 10
+      }
+
+      // Total
+      yPos += 10
+      doc.setFontSize(14)
+      doc.text(`Total Amount: PKR ${bill.total_amount.toFixed(2)}`, 20, yPos)
+
+      // Footer
+      yPos += 20
+      doc.setFontSize(10)
+      doc.text("Thank you for your business!", 105, yPos, { align: "center" })
+      doc.text("Please pay by the due date to avoid late fees.", 105, yPos + 10, { align: "center" })
+
+      // Download the PDF
+      doc.save(`Bill_${bill.bill_number}.pdf`)
+    } catch (error) {
+      console.error("[v0] Error generating PDF:", error)
+      setError("Failed to generate PDF. Please try again.")
+    }
+  }
+
+  const handleEditBill = (bill: DBBill) => {
+    setEditingBill(bill)
+    setIsEditMode(true)
+
+    // Pre-populate the form with bill data
+    const business = businesses.find(b => b.id === bill.business_id)
+    setNewBill({
+      businessId: bill.business_id,
+      billType: bill.bill_number.startsWith('RENT') ? 'rent' :
+        bill.bill_number.startsWith('ELE') ? 'electricity' :
+          bill.bill_number.startsWith('MAIN') ? 'maintenance' : 'combined',
+      electricityUnits: "", // Will be calculated from electricity_charges if needed
+      electricityRate: "8.5", // Default rate
+      maintenanceAmount: bill.maintenance_charges?.toString() || "",
+      maintenanceDescription: "", // Not stored in database
+      waterCharges: bill.water_charges?.toString() || "",
+      otherCharges: bill.other_charges?.toString() || "",
+      month: new Date().toLocaleString("default", { month: "long" }), // Default to current month
+      year: new Date().getFullYear().toString(), // Default to current year
+      dueDate: bill.due_date || "",
+    })
+  }
+
+  const handleUpdateBill = async () => {
+    if (!editingBill) return
+
+    try {
+      setLoading(true)
+
+      const electricityCharges = parseFloat(newBill.electricityUnits) * parseFloat(newBill.electricityRate) || 0
+      const maintenanceCharges = parseFloat(newBill.maintenanceAmount) || 0
+      const waterCharges = isElectricityManagement ? 0 : (parseFloat(newBill.waterCharges) || 0)
+      const otherCharges = isElectricityManagement ? 0 : (parseFloat(newBill.otherCharges) || 0)
+      const totalAmount = electricityCharges + maintenanceCharges + waterCharges + otherCharges
+
+      const updatedBillData = {
+        business_id: newBill.businessId,
+        electricity_charges: electricityCharges,
+        maintenance_charges: maintenanceCharges,
+        water_charges: waterCharges,
+        other_charges: otherCharges,
+        total_amount: totalAmount,
+        due_date: newBill.dueDate,
+      }
+
+      const { error } = await clientDb.updateBill(editingBill.id, updatedBillData)
+
+      if (error) throw error
+
+      // Reload bills to show updated data
+      await loadBillData()
+
+      // Reset form and close edit mode
+      setIsEditMode(false)
+      setEditingBill(null)
+      setNewBill({
+        businessId: "",
+        billType: "electricity",
+        electricityUnits: "",
+        electricityRate: "8.5",
+        maintenanceAmount: "",
+        maintenanceDescription: "",
+        waterCharges: "",
+        otherCharges: "",
+        month: new Date().toLocaleString("default", { month: "long" }),
+        year: new Date().getFullYear().toString(),
+        dueDate: "",
+      })
+
+    } catch (error) {
+      console.error("[v0] Error updating bill:", error)
+      setError("Failed to update bill. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteBill = async () => {
+    if (!deletingBill) return
+
+    try {
+      setLoading(true)
+
+      const { error } = await clientDb.deleteBill(deletingBill.id)
+
+      if (error) throw error
+
+      // Reload bills to show updated data
+      await loadBillData()
+
+      // Close delete dialog
+      setDeletingBill(null)
+
+    } catch (error) {
+      console.error("[v0] Error deleting bill:", error)
+      setError("Failed to delete bill. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleViewBill = (bill: DBBill) => {
+    setViewingBill(bill)
+  }
+
+  const handleStatusChange = async (billId: string, newStatus: "pending" | "paid") => {
+    try {
+      setLoading(true)
+      
+      const { error } = await clientDb.updateBill(billId, { status: newStatus })
+      
+      if (error) throw error
+      
+      // Reload bills to show updated status
+      await loadBillData()
+      
+    } catch (error) {
+      console.error("Error updating bill status:", error)
+      setError("Failed to update bill status. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredBills = bills.filter((bill) => {
+    const businessName = getBusinessName(bill.business_id)
+    const shopNumber = getBusinessShop(bill.business_id)
+    return (
+      businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bill.bill_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      shopNumber.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  })
+
+  // Filter bills by status for rent management
+  const paidBills = filteredBills.filter(bill => bill.status === "paid")
+  const unpaidBills = filteredBills.filter(bill => bill.status === "pending" || bill.status === "overdue")
+
+  // Get bills based on current sub-tab
+  const getCurrentBills = () => {
+    switch (billsSubTab) {
+      case "paid":
+        return paidBills
+      case "unpaid":
+        return unpaidBills
+      default:
+        return filteredBills
+    }
+  }
+
+  const getSectionTitle = () => {
+    if (isEditMode) {
+      return "Edit Bill"
+    }
+
+    switch (activeSubSection) {
+      case "bill-generate":
+        return isRentManagement ? "Generate Rent Bill" : "Generate Bill"
+      case "bill-all":
+        return isRentManagement ? "All Rent Bills" : "All Bills"
+      case "electricity-generate":
+        return "Generate Electricity Bill"
+      case "electricity-all":
+        return "All Electricity Bills"
+      default:
+        if (isRentManagement) return "Rent Bill Generation"
+        if (isElectricityManagement) return "Electricity Bill Generation"
+        return "Bill Generation"
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Loading bill data...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Error loading bills: {error}</p>
+          <Button onClick={loadBillData} variant="outline">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const renderGenerateBill = () => (
+      <Card className="border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">
+            {isEditMode ? `Edit Bill - ${editingBill?.bill_number}` : 
+             isRentManagement ? "Generate New Rent Bill" :
+             isElectricityManagement ? "Generate New Electricity Bill" : "Generate New Bill"}
+          </CardTitle>
+        </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="business">Business</Label>
+            <Select
+              value={newBill.businessId}
+              onValueChange={(value) => {
+                const selectedBusiness = businesses.find(b => b.id === value)
+
+                setNewBill({ ...newBill, businessId: value })
+
+                // Auto-populate electricity data from latest meter reading when in electricity management or electricity bill type
+                if (isElectricityManagement || newBill.billType === "electricity" || newBill.billType === "combined") {
+                  const latestReading = getLatestMeterReading(value)
+                  if (latestReading) {
+                    setNewBill((prev) => ({
+                      ...prev,
+                      businessId: value,
+                      electricityUnits: latestReading.units_consumed.toString(),
+                      electricityRate: latestReading.rate_per_unit.toString(),
+                    }))
+                  } else {
+                    setNewBill((prev) => ({
+                      ...prev,
+                      businessId: value,
+                    }))
+                  }
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select business" />
+              </SelectTrigger>
+              <SelectContent>
+                {businesses.map((business) => (
+                  <SelectItem key={business.id} value={business.id}>
+                    {business.name} - {business.shop_number}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {!isRentManagement && !isElectricityManagement && (
+            <div className="space-y-2">
+              <Label htmlFor="billType">Bill Type</Label>
+              <Select
+                value={newBill.billType}
+                onValueChange={(value: "electricity" | "maintenance" | "combined" | "rent") =>
+                  setNewBill({ ...newBill, billType: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rent">Rent Only</SelectItem>
+                  <SelectItem value="electricity">Electricity Only</SelectItem>
+                  <SelectItem value="maintenance">Maintenance Only</SelectItem>
+                  <SelectItem value="combined">Combined Bill</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="month">Month</Label>
+            <Select value={newBill.month} onValueChange={(value) => setNewBill({ ...newBill, month: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select month" />
+              </SelectTrigger>
+              <SelectContent>
+                {[
+                  "January",
+                  "February",
+                  "March",
+                  "April",
+                  "May",
+                  "June",
+                  "July",
+                  "August",
+                  "September",
+                  "October",
+                  "November",
+                  "December",
+                ].map((month) => (
+                  <SelectItem key={month} value={month}>
+                    {month}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="year">Year</Label>
+            <Select value={newBill.year} onValueChange={(value) => setNewBill({ ...newBill, year: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select year" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 5 }, (_, i) => (
+                  <SelectItem key={2020 + i} value={(2020 + i).toString()}>
+                    {2020 + i}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="dueDate">Due Date</Label>
+            <Input
+              id="dueDate"
+              type="date"
+              value={newBill.dueDate}
+              onChange={(e) => setNewBill({ ...newBill, dueDate: e.target.value })}
+            />
+          </div>
+        </div>
+
+        {(isElectricityManagement || (!isRentManagement && (newBill.billType === "electricity" || newBill.billType === "combined"))) && (
+          <div className="space-y-4 p-4 border rounded-lg">
+            <h3 className="font-semibold flex items-center gap-2">
+              <Zap className="h-4 w-4 text-yellow-500" />
+              Electricity Details
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="electricityUnits">Units Consumed</Label>
+                <Input
+                  id="electricityUnits"
+                  type="number"
+                  value={newBill.electricityUnits}
+                  onChange={(e) => setNewBill({ ...newBill, electricityUnits: e.target.value })}
+                  placeholder="Enter units"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="electricityRate">Rate per Unit (PKR )</Label>
+                <Input
+                  id="electricityRate"
+                  type="number"
+                  step="0.1"
+                  value={newBill.electricityRate}
+                  onChange={(e) => setNewBill({ ...newBill, electricityRate: e.target.value })}
+                  placeholder="8.5"
+                />
+              </div>
+            </div>
+            {newBill.electricityUnits && newBill.electricityRate && (
+              <div className="text-sm text-gray-600">
+                Electricity Amount: PKR
+                {calculateElectricityAmount(
+                  Number.parseFloat(newBill.electricityUnits),
+                  Number.parseFloat(newBill.electricityRate),
+                ).toFixed(2)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isElectricityManagement && (newBill.billType === "rent" || isRentManagement) && (
+          <div className="space-y-4 p-4 border rounded-lg">
+            <h3 className="font-semibold flex items-center gap-2">
+              <FileText className="h-4 w-4 text-green-500" />
+              Rent Details
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="rentAmount">Rent Amount (PKR)</Label>
+                <Input
+                  id="rentAmount"
+                  type="number"
+                  value={newBill.maintenanceAmount}
+                  onChange={(e) => setNewBill({ ...newBill, maintenanceAmount: e.target.value })}
+                  placeholder="Auto-filled from business data"
+                />
+                <p className="text-xs text-gray-500">
+                  Amount is automatically filled from business rent data
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!isRentManagement && !isElectricityManagement && (newBill.billType === "maintenance" || newBill.billType === "combined") && (
+          <div className="space-y-4 p-4 border rounded-lg">
+            <h3 className="font-semibold flex items-center gap-2">
+              <Wrench className="h-4 w-4 text-blue-500" />
+              Maintenance Details
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="maintenanceAmount">Maintenance Amount (PKR )</Label>
+                <Input
+                  id="maintenanceAmount"
+                  type="number"
+                  value={newBill.maintenanceAmount}
+                  onChange={(e) => setNewBill({ ...newBill, maintenanceAmount: e.target.value })}
+                  placeholder="Enter amount"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="maintenanceDescription">Description</Label>
+              <Textarea
+                id="maintenanceDescription"
+                value={newBill.maintenanceDescription}
+                onChange={(e) => setNewBill({ ...newBill, maintenanceDescription: e.target.value })}
+                placeholder="Describe maintenance work"
+                rows={3}
+              />
+            </div>
+          </div>
+        )}
+
+        {!isElectricityManagement && (
+          <div className="space-y-4 p-4 border rounded-lg">
+            <h3 className="font-semibold">Additional Charges</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="waterCharges">Water Charges (PKR )</Label>
+                <Input
+                  id="waterCharges"
+                  type="number"
+                  value={newBill.waterCharges}
+                  onChange={(e) => setNewBill({ ...newBill, waterCharges: e.target.value })}
+                  placeholder="Enter water charges"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="otherCharges">Other Charges (PKR )</Label>
+                <Input
+                  id="otherCharges"
+                  type="number"
+                  value={newBill.otherCharges}
+                  onChange={(e) => setNewBill({ ...newBill, otherCharges: e.target.value })}
+                  placeholder="Enter other charges"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <Button
+            onClick={isEditMode ? handleUpdateBill : createBill}
+            className="bg-black text-white hover:bg-gray-800"
+          >
+            {isEditMode ? (
+              <>
+                <Edit className="h-4 w-4 mr-2" />
+                Update Bill
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4 mr-2" />
+                {isRentManagement ? "Create Rent Bill" : 
+                 isElectricityManagement ? "Create Electricity Bill" : "Create Bill"}
+              </>
+            )}
+          </Button>
+          {isEditMode && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditMode(false)
+                setEditingBill(null)
+                setNewBill({
+                  businessId: "",
+                  billType: "electricity",
+                  electricityUnits: "",
+                  electricityRate: "8.5",
+                  maintenanceAmount: "",
+                  maintenanceDescription: "",
+                  waterCharges: "",
+                  otherCharges: "",
+                  month: new Date().toLocaleString("default", { month: "long" }),
+                  year: new Date().getFullYear().toString(),
+                  dueDate: "",
+                })
+              }}
+            >
+              Cancel
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+    )
+  }
+
+  // Helper functions for tabbed interface
+  const renderBillFormAndList = () => (
+    <div className="space-y-6">
+      {/* Generate Bill Form - Only show in 'all' tab */}
+      <Card className="border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">
+            Generate New Rent Bill
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {renderBillForm()}
+        </CardContent>
+      </Card>
+      
+      {/* Bills List */}
+      {renderBillListCard()}
+    </div>
+  )
+
+  const renderBillList = () => (
+    <div className="space-y-6">
+      {/* Summary Cards for Unpaid/Paid tabs */}
+      {billsSubTab !== "all" && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="p-4">
+            <div className="flex items-center gap-2">
+              <FileText className={`h-5 w-5 ${billsSubTab === "unpaid" ? "text-red-500" : "text-green-500"}`} />
+              <div>
+                <div className="text-sm text-gray-600">
+                  {billsSubTab === "unpaid" ? "Unpaid Bills" : "Paid Bills"}
+                </div>
+                <div className={`text-xl font-bold ${billsSubTab === "unpaid" ? "text-red-600" : "text-green-600"}`}>
+                  {getCurrentBills().length}
+                </div>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-blue-500" />
+              <div>
+                <div className="text-sm text-gray-600">
+                  {billsSubTab === "unpaid" ? "Total Outstanding" : "Total Collected"}
+                </div>
+                <div className="text-xl font-bold text-blue-600">
+                  PKR {getCurrentBills().reduce((sum, bill) =>
+                    sum + (billsSubTab === "unpaid" ? bill.total_amount : bill.total_amount), 0
+                  ).toFixed(2)}
+                </div>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-purple-500" />
+              <div>
+                <div className="text-sm text-gray-600">Average Amount</div>
+                <div className="text-xl font-bold text-purple-600">
+                  PKR {getCurrentBills().length > 0
+                    ? (getCurrentBills().reduce((sum, bill) => sum + bill.total_amount, 0) / getCurrentBills().length).toFixed(2)
+                    : "0.00"
+                  }
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+      
+      {/* Bills List */}
+      {renderBillListCard()}
+    </div>
+  )
+
+  const renderBillListCard = () => (
+    <Card className="border-gray-200">
+      <CardHeader>
+        <CardTitle>
+          {billsSubTab === "all" && "All Rent Bills"}
+          {billsSubTab === "paid" && "Paid Rent Bills"}
+          {billsSubTab === "unpaid" && "Unpaid Rent Bills"}
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          <Search className="h-4 w-4 text-gray-500" />
+          <Input
+            placeholder="Search bills..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Bill Number</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Due Date</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {getCurrentBills().map((bill) => (
+              <TableRow key={bill.id}>
+                <TableCell className="font-medium">{bill.bill_number}</TableCell>
+                <TableCell>
+                  <div>
+                    <div className="font-medium">{getBusinessName(bill.business_id)}</div>
+                    <div className="text-sm text-gray-500">{getBusinessShop(bill.business_id)}</div>
+                  </div>
+                </TableCell>
+                <TableCell>PKR {bill.total_amount.toFixed(2)}</TableCell>
+                <TableCell>
+                  <Badge variant={bill.status === "paid" ? "default" : "secondary"}>
+                    {bill.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>{bill.due_date}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" onClick={() => handleViewBill(bill)}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => downloadPDF(bill)}>
+                      <Printer className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleEditBill(bill)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeletingBill(bill)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  )
+
+  const renderBillForm = () => (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="business">Business</Label>
+          <Select
+            value={newBill.businessId}
+            onValueChange={(value) => {
+              setNewBill({ ...newBill, businessId: value })
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select business" />
+            </SelectTrigger>
+            <SelectContent>
+              {businesses.map((business) => (
+                <SelectItem key={business.id} value={business.id}>
+                  {business.name} - {business.shop_number}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="month">Month</Label>
+          <Select value={newBill.month} onValueChange={(value) => setNewBill({ ...newBill, month: value })}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select month" />
+            </SelectTrigger>
+            <SelectContent>
+              {[
+                "January",
+                "February",
+                "March",
+                "April",
+                "May",
+                "June",
+                "July",
+                "August",
+                "September",
+                "October",
+                "November",
+                "December",
+              ].map((month) => (
+                <SelectItem key={month} value={month}>
+                  {month}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="year">Year</Label>
+          <Select value={newBill.year} onValueChange={(value) => setNewBill({ ...newBill, year: value })}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select year" />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 5 }, (_, i) => (
+                <SelectItem key={2020 + i} value={(2020 + i).toString()}>
+                  {2020 + i}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="dueDate">Due Date</Label>
+          <Input
+            id="dueDate"
+            type="date"
+            value={newBill.dueDate}
+            onChange={(e) => setNewBill({ ...newBill, dueDate: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-4 p-4 border rounded-lg">
+        <h3 className="font-semibold flex items-center gap-2">
+          <FileText className="h-4 w-4 text-green-500" />
+          Rent Details
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="rentAmount">Rent Amount (PKR)</Label>
+            <Input
+              id="rentAmount"
+              type="number"
+              value={newBill.maintenanceAmount}
+              onChange={(e) => setNewBill({ ...newBill, maintenanceAmount: e.target.value })}
+              placeholder="Auto-filled from business data"
+            />
+            <p className="text-xs text-gray-500">
+              Amount is automatically filled from business rent data
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4 p-4 border rounded-lg">
+        <h3 className="font-semibold">Additional Charges</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="waterCharges">Water Charges (PKR)</Label>
+            <Input
+              id="waterCharges"
+              type="number"
+              value={newBill.waterCharges}
+              onChange={(e) => setNewBill({ ...newBill, waterCharges: e.target.value })}
+              placeholder="Enter water charges"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="otherCharges">Other Charges (PKR)</Label>
+            <Input
+              id="otherCharges"
+              type="number"
+              value={newBill.otherCharges}
+              onChange={(e) => setNewBill({ ...newBill, otherCharges: e.target.value })}
+              placeholder="Enter other charges"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <Button
+          onClick={createBill}
+          className="bg-black text-white hover:bg-gray-800"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Create Rent Bill
+        </Button>
+      </div>
+    </>
+  )
+
+  const renderPrintBill = () => (
+    <div className="space-y-6">
+      <Card className="border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Select Bill to Print</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Search bills..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Bill Number</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Shop</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredBills.map((bill) => (
+                  <TableRow key={bill.id}>
+                    <TableCell className="font-medium">{bill.bill_number}</TableCell>
+                    <TableCell>{getBusinessName(bill.business_id)}</TableCell>
+                    <TableCell>{getBusinessShop(bill.business_id)}</TableCell>
+                    <TableCell>PKR {bill.total_amount.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={bill.status}
+                        onValueChange={(value: "pending" | "paid") => handleStatusChange(bill.id, value)}
+                      >
+                        <SelectTrigger className="w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                              <span>Unpaid</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="paid">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                              <span>Paid</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setSelectedBillForPrint(bill)}>
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => downloadPDF(bill)}>
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {filteredBills.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No bills found.</p>
+                <p className="text-sm">Generate your first bill above.</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {selectedBillForPrint && (
+        <Card className="border-gray-200">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Bill Preview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="max-w-2xl mx-auto p-8 border bg-white">
+              <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold">PLAZA MANAGEMENT</h1>
+                <p className="text-gray-600">Electricity & Maintenance Bill</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                  <h3 className="font-semibold mb-2">Bill To:</h3>
+                  <p className="font-medium">{getBusinessName(selectedBillForPrint.business_id)}</p>
+                  <p>Shop: {getBusinessShop(selectedBillForPrint.business_id)}</p>
+                  <p>
+                    {getFloorName(businesses.find((b) => b.id === selectedBillForPrint.business_id)?.floor_number || 1)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p>
+                    <strong>Bill No:</strong> {selectedBillForPrint.bill_number}
+                  </p>
+                  <p>
+                    <strong>Date:</strong> {selectedBillForPrint.bill_date}
+                  </p>
+                  <p>
+                    <strong>Due Date:</strong> {selectedBillForPrint.due_date}
+                  </p>
+                </div>
+              </div>
+
+              <Separator className="my-4" />
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold mb-2">Charges Breakdown</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Rent Amount:</span>
+                      <span>PKR {selectedBillForPrint.rent_amount.toFixed(2)}</span>
+                    </div>
+                    {selectedBillForPrint.electricity_charges > 0 && (
+                      <div className="flex justify-between">
+                        <span>Electricity Charges:</span>
+                        <span>PKR {selectedBillForPrint.electricity_charges.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {selectedBillForPrint.maintenance_charges > 0 && (
+                      <div className="flex justify-between">
+                        <span>Maintenance Charges:</span>
+                        <span>PKR {selectedBillForPrint.maintenance_charges.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {selectedBillForPrint.water_charges > 0 && (
+                      <div className="flex justify-between">
+                        <span>Water Charges:</span>
+                        <span>PKR {selectedBillForPrint.water_charges.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {selectedBillForPrint.other_charges > 0 && (
+                      <div className="flex justify-between">
+                        <span>Other Charges:</span>
+                        <span>PKR {selectedBillForPrint.other_charges.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="my-4" />
+
+              <div className="text-right">
+                <div className="text-xl font-bold">Total Amount: PKR {selectedBillForPrint.total_amount.toFixed(2)}</div>
+              </div>
+
+              <div className="mt-6 text-center text-sm text-gray-600">
+                <p>Thank you for your business!</p>
+                <p>Please pay by the due date to avoid late fees.</p>
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-4 mt-4">
+              <Button
+                onClick={() => downloadPDF(selectedBillForPrint)}
+                className="bg-black text-white hover:bg-gray-800"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download PDF
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+
+  const renderAllBills = () => {
+    // If in rent management mode, show tabbed interface
+    if (isRentManagement) {
+      return (
+        <div className="space-y-6">
+          <Tabs value={billsSubTab} onValueChange={setBillsSubTab}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="all">All Bills ({filteredBills.length})</TabsTrigger>
+              <TabsTrigger value="unpaid">Unpaid ({unpaidBills.length})</TabsTrigger>
+              <TabsTrigger value="paid">Paid ({paidBills.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="all" className="space-y-6">
+              {renderBillListCard()}
+            </TabsContent>
+            <TabsContent value="unpaid" className="space-y-6">
+              {renderBillList()}
+            </TabsContent>
+            <TabsContent value="paid" className="space-y-6">
+              {renderBillList()}
+            </TabsContent>
+          </Tabs>
+        </div>
+      )
+    }
+
+    // Default behavior for non-rent management
+    return (
+      <Card className="border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold flex items-center justify-between">
+            All Bills
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Search bills..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-64"
+              />
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Bill Number</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Shop</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredBills.map((bill) => (
+              <TableRow key={bill.id}>
+                <TableCell className="font-medium">{bill.bill_number}</TableCell>
+                <TableCell>{getBusinessName(bill.business_id)}</TableCell>
+                <TableCell>{getBusinessShop(bill.business_id)}</TableCell>
+                <TableCell>{bill.bill_date}</TableCell>
+                <TableCell>PKR {bill.total_amount.toFixed(2)}</TableCell>
+                <TableCell>
+                  <Select
+                    value={bill.status}
+                    onValueChange={(value: "pending" | "paid") => handleStatusChange(bill.id, value)}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                          <span>Unpaid</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="paid">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                          <span>Paid</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1">
+                    <Button variant="outline" size="sm" onClick={() => handleViewBill(bill)} title="View Details">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleEditBill(bill)} title="Edit Bill">
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => downloadPDF(bill)} title="Print/Download PDF">
+                      <Printer className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeletingBill(bill)}
+                      title="Delete Bill"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {filteredBills.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No bills found.</p>
+            <p className="text-sm">Generate your first bill above.</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+    )
+  }
+
+  const renderContent = () => {
+    // If in edit mode, show the generate bill form with edit functionality
+    if (isEditMode) {
+      return renderGenerateBill()
+    }
+
+    switch (activeSubSection) {
+      case "bill-generate":
+        return renderGenerateBill()
+      case "bill-all":
+        return renderAllBills()
+      default:
+        return renderGenerateBill()
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-black">{getSectionTitle()}</h1>
+      {renderContent()}
+
+      {/* View Bill Dialog */}
+      <Dialog open={!!viewingBill} onOpenChange={() => setViewingBill(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Bill Details</DialogTitle>
+            <DialogDescription>
+              View complete bill information
+            </DialogDescription>
+          </DialogHeader>
+          {viewingBill && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Bill Number</Label>
+                  <p className="text-sm">{viewingBill.bill_number}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Date</Label>
+                  <p className="text-sm">{viewingBill.bill_date}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Customer</Label>
+                  <p className="text-sm">{getBusinessName(viewingBill.business_id)}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Shop</Label>
+                  <p className="text-sm">{getBusinessShop(viewingBill.business_id)}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Status</Label>
+                  <Badge variant={viewingBill.status === "paid" ? "default" : "secondary"}>
+                    {viewingBill.status}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Due Date</Label>
+                  <p className="text-sm">{viewingBill.due_date}</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <h4 className="font-medium">Charges Breakdown</h4>
+                {viewingBill.electricity_charges > 0 && (
+                  <div className="flex justify-between">
+                    <span>Electricity Charges</span>
+                    <span>PKR {viewingBill.electricity_charges.toFixed(2)}</span>
+                  </div>
+                )}
+                {viewingBill.maintenance_charges > 0 && (
+                  <div className="flex justify-between">
+                    <span>
+                      {viewingBill.bill_number.startsWith('RENT') ? 'Rent Charges' : 'Maintenance Charges'}
+                    </span>
+                    <span>PKR {viewingBill.maintenance_charges.toFixed(2)}</span>
+                  </div>
+                )}
+                {viewingBill.water_charges > 0 && (
+                  <div className="flex justify-between">
+                    <span>Water Charges</span>
+                    <span>PKR {viewingBill.water_charges.toFixed(2)}</span>
+                  </div>
+                )}
+                {viewingBill.other_charges > 0 && (
+                  <div className="flex justify-between">
+                    <span>Other Charges</span>
+                    <span>PKR {viewingBill.other_charges.toFixed(2)}</span>
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Total Amount</span>
+                  <span>PKR {viewingBill.total_amount.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingBill(null)}>
+              Close
+            </Button>
+            {viewingBill && (
+              <Button onClick={() => downloadPDF(viewingBill)}>
+                <Printer className="h-4 w-4 mr-2" />
+                Print PDF
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingBill} onOpenChange={() => setDeletingBill(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Bill</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete bill {deletingBill?.bill_number}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteBill}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
