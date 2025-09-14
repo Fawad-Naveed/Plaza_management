@@ -26,7 +26,7 @@ import {
   Loader2,
   Save,
 } from "lucide-react"
-import { clientDb, type Business, type ContactPerson, type Floor, type Advance, type Instalment, deleteAdvance, deleteFloor, checkAdvanceExists, createInstalment, updateInstalment, deleteInstalment, checkInstalmentExists } from "@/lib/database"
+import { clientDb, type Business, type ContactPerson, type Floor, type Advance, type PartialPayment, deleteAdvance, deleteFloor, checkAdvanceExists, createPartialPayment, updatePartialPayment, deletePartialPayment, checkPartialPaymentExists } from "@/lib/database"
 
 interface TheftRecord {
   id: string
@@ -41,11 +41,83 @@ interface CustomerManagementProps {
   activeSubSection: string
 }
 
+interface AddPaymentFormProps {
+  partialPayment: PartialPayment
+  onSubmit: (amount: number, date: string, description?: string) => void
+}
+
+function AddPaymentForm({ partialPayment, onSubmit }: AddPaymentFormProps) {
+  const [paymentAmount, setPaymentAmount] = useState(0)
+  const [paymentDate, setPaymentDate] = useState('')
+  const [description, setDescription] = useState('')
+  
+  const remainingAmount = partialPayment.total_rent_amount - partialPayment.total_paid_amount
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (paymentAmount > 0 && paymentDate) {
+      onSubmit(paymentAmount, paymentDate, description || undefined)
+      setPaymentAmount(0)
+      setPaymentDate('')
+      setDescription('')
+    }
+  }
+  
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="text-sm text-gray-600">
+        Remaining amount: PKR {remainingAmount.toLocaleString()}
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="addPaymentAmount">Payment Amount</Label>
+        <Input
+          id="addPaymentAmount"
+          type="number"
+          step="0.01"
+          max={remainingAmount}
+          value={paymentAmount}
+          onChange={(e) => setPaymentAmount(Number.parseFloat(e.target.value) || 0)}
+          placeholder="Enter payment amount"
+          required
+        />
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="addPaymentDate">Payment Date</Label>
+        <Input
+          id="addPaymentDate"
+          type="date"
+          value={paymentDate}
+          onChange={(e) => setPaymentDate(e.target.value)}
+          required
+        />
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="addPaymentDescription">Description (Optional)</Label>
+        <Input
+          id="addPaymentDescription"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Add notes about this payment"
+        />
+      </div>
+      
+      <div className="flex justify-end gap-2">
+        <Button type="submit" className="bg-blue-600 text-white hover:bg-blue-700">
+          Add Payment
+        </Button>
+      </div>
+    </form>
+  )
+}
+
 export function CustomerManagement({ activeSubSection }: CustomerManagementProps) {
   const [businesses, setBusinesses] = useState<Business[]>([])
   const [floors, setFloors] = useState<Floor[]>([])
   const [advances, setAdvances] = useState<Advance[]>([])
-  const [instalments, setInstalments] = useState<Instalment[]>([])
+  const [partialPayments, setPartialPayments] = useState<PartialPayment[]>([])
   const [contactPersons, setContactPersons] = useState<ContactPerson[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -121,21 +193,19 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
   })
   const [advanceError, setAdvanceError] = useState<string | null>(null)
   
-  // Rent Installment State
-  const [newInstalment, setNewInstalment] = useState({
+  // Partial Payment State
+  const [newPartialPayment, setNewPartialPayment] = useState({
     business_id: "",
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
-    instalments_count: 4,
-    frequency: "weekly" as "weekly" | "bi-weekly" | "custom",
-    start_date: "",
+    payment_date: "",
+    payment_amount: 0,
     description: "",
-    custom_due_dates: ["", "", "", ""], // For custom frequency
-    custom_amounts: [0, 0, 0, 0], // For custom installment amounts
-    use_custom_amounts: false, // Toggle for custom vs equal amounts
   })
-  const [instalmentError, setInstalmentError] = useState<string | null>(null)
-  const [expandedInstalments, setExpandedInstalments] = useState<string[]>([])
+  const [partialPaymentError, setPartialPaymentError] = useState<string | null>(null)
+  const [expandedPartialPayments, setExpandedPartialPayments] = useState<string[]>([])
+  const [selectedPartialPayment, setSelectedPartialPayment] = useState<PartialPayment | null>(null)
+  const [addPaymentDialog, setAddPaymentDialog] = useState(false)
 
   // Field validation rules
   const validateField = React.useCallback((fieldName: string, value: any) => {
@@ -254,11 +324,11 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
       setLoading(true)
       setError(null)
 
-      const [businessesResult, floorsResult, advancesResult, instalmentsResult] = await Promise.all([
+      const [businessesResult, floorsResult, advancesResult, partialPaymentsResult] = await Promise.all([
         clientDb.getBusinesses(),
         clientDb.getFloors(),
         clientDb.getAdvances(),
-        clientDb.getInstalments(),
+        clientDb.getPartialPayments(),
       ])
 
       if (businessesResult.error) {
@@ -273,15 +343,15 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
         console.error("[v0] getAdvances error:", advancesResult.error)
         throw advancesResult.error
       }
-      if (instalmentsResult.error) {
-        console.error("[v0] getInstalments error:", instalmentsResult.error)
-        throw instalmentsResult.error
+      if (partialPaymentsResult.error) {
+        console.error("[v0] getPartialPayments error:", partialPaymentsResult.error)
+        throw partialPaymentsResult.error
       }
 
       setBusinesses(businessesResult.data || [])
       setFloors(floorsResult.data || [])
       setAdvances(advancesResult.data || [])
-      setInstalments(instalmentsResult.data || [])
+      setPartialPayments(partialPaymentsResult.data || [])
       
       // Clear any validation errors after successful load
       setError(null)
@@ -647,7 +717,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
       case "customer-advance":
         return "Business Advance"
       case "customer-instalments":
-        return "Business Instalments"
+        return "Business Partial Payments"
       case "customer-theft":
         return "Theft Records"
       case "customer-meter-load":
@@ -666,8 +736,8 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
     return businessAdvances.reduce((total, advance) => total + advance.amount, 0)
   }
 
-  const getBusinessInstalments = (businessId: string) => {
-    return instalments.filter((i) => i.business_id === businessId)
+  const getBusinessPartialPayments = (businessId: string) => {
+    return partialPayments.filter((p) => p.business_id === businessId)
   }
 
   const getFloorName = (floorNumber: number) => {
@@ -1570,193 +1640,122 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
     return Math.floor(newAdvance.amount / rentAmount * 100) / 100 // Round to 2 decimal places
   }
 
-  // Rent Installment Utility Functions
-  const getSelectedBusinessForInstalment = () => {
-    if (!newInstalment.business_id) return null
-    return businesses.find(b => b.id === newInstalment.business_id)
+  // Partial Payment Utility Functions
+  const getSelectedBusinessForPartialPayment = () => {
+    if (!newPartialPayment.business_id) return null
+    return businesses.find(b => b.id === newPartialPayment.business_id)
   }
 
-  const calculateInstalmentAmount = () => {
-    const business = getSelectedBusinessForInstalment()
-    if (!business || newInstalment.instalments_count === 0) return 0
-    return Math.floor(business.rent_amount / newInstalment.instalments_count * 100) / 100
-  }
-
-  // Calculate total of custom amounts
-  const calculateCustomAmountsTotal = () => {
-    return newInstalment.custom_amounts.reduce((total, amount) => total + (amount || 0), 0)
-  }
-
-  // Get the amount for a specific installment (custom or equal)
-  const getInstalmentAmountAt = (index: number) => {
-    if (newInstalment.use_custom_amounts && newInstalment.custom_amounts[index]) {
-      return newInstalment.custom_amounts[index]
-    }
-    return calculateInstalmentAmount()
-  }
-
-  // Update custom amount for specific installment
-  const updateCustomAmount = (index: number, amount: number) => {
-    const newAmounts = [...newInstalment.custom_amounts]
-    newAmounts[index] = amount
-    setNewInstalment({ ...newInstalment, custom_amounts: newAmounts })
-  }
-
-  // Auto-distribute remaining amount to unfilled installments
-  const autoDistributeRemainingAmount = () => {
-    const business = getSelectedBusinessForInstalment()
-    if (!business) return
-
-    const totalRent = business.rent_amount
-    const filledAmounts = newInstalment.custom_amounts.filter(amount => amount > 0)
-    const filledTotal = filledAmounts.reduce((sum, amount) => sum + amount, 0)
-    const remaining = totalRent - filledTotal
-    const emptySlots = newInstalment.custom_amounts.filter(amount => amount === 0).length
-
-    if (emptySlots > 0 && remaining > 0) {
-      const amountPerSlot = Math.floor(remaining / emptySlots * 100) / 100
-      const newAmounts = newInstalment.custom_amounts.map(amount => 
-        amount === 0 ? amountPerSlot : amount
-      )
-      setNewInstalment({ ...newInstalment, custom_amounts: newAmounts })
-    }
-  }
-
-  const generateDueDates = (startDate: string, frequency: string, count: number): string[] => {
-    if (!startDate) return Array(count).fill("")
-    
-    const dates: string[] = []
-    const start = new Date(startDate)
-    
-    for (let i = 0; i < count; i++) {
-      const dueDate = new Date(start)
-      
-      if (frequency === "weekly") {
-        dueDate.setDate(start.getDate() + (i * 7))
-      } else if (frequency === "bi-weekly") {
-        dueDate.setDate(start.getDate() + (i * 14))
-      }
-      
-      dates.push(dueDate.toISOString().split('T')[0])
-    }
-    
-    return dates
-  }
-
-  const toggleInstalmentExpansion = (instalmentId: string) => {
-    setExpandedInstalments((prev) =>
-      prev.includes(instalmentId) ? prev.filter((id) => id !== instalmentId) : [...prev, instalmentId],
+  const togglePartialPaymentExpansion = (partialPaymentId: string) => {
+    setExpandedPartialPayments((prev) =>
+      prev.includes(partialPaymentId) ? prev.filter((id) => id !== partialPaymentId) : [...prev, partialPaymentId],
     )
   }
 
-  const addRentInstalment = async () => {
-    const business = getSelectedBusinessForInstalment()
-    if (!business || !newInstalment.business_id || newInstalment.instalments_count === 0 || !newInstalment.start_date) {
-      setInstalmentError("Please fill all required fields")
+  const getPaymentStatus = (partialPayment: PartialPayment) => {
+    return partialPayment.total_paid_amount >= partialPayment.total_rent_amount ? "completed" : "pending"
+  }
+
+  const getStatusColor = (partialPayment: PartialPayment) => {
+    return partialPayment.total_paid_amount >= partialPayment.total_rent_amount ? "text-green-600" : "text-red-600"
+  }
+
+  const getStatusBadgeVariant = (partialPayment: PartialPayment) => {
+    return partialPayment.total_paid_amount >= partialPayment.total_rent_amount ? "default" : "destructive"
+  }
+
+  const createPartialPaymentRecord = async () => {
+    const business = getSelectedBusinessForPartialPayment()
+    if (!business || !newPartialPayment.business_id || !newPartialPayment.payment_date || newPartialPayment.payment_amount <= 0) {
+      setPartialPaymentError("Please fill all required fields")
       return
     }
 
     try {
-      setInstalmentError(null)
+      setPartialPaymentError(null)
       
-      // Check if installment already exists for this business, month, and year
-      const exists = await checkInstalmentExists(newInstalment.business_id, newInstalment.month, newInstalment.year)
+      // Check if partial payment record already exists for this business, month, and year
+      const exists = await checkPartialPaymentExists(newPartialPayment.business_id, newPartialPayment.month, newPartialPayment.year)
       
       if (exists) {
-        const monthNames = ["January", "February", "March", "April", "May", "June", 
-                           "July", "August", "September", "October", "November", "December"]
-        setInstalmentError(`Rent installment for ${business.name} already exists for ${monthNames[newInstalment.month - 1]} ${newInstalment.year}`)
+        setPartialPaymentError("A partial payment record already exists for this business and month. Please add payments to the existing record.")
         return
       }
 
-      const instalmentAmount = calculateInstalmentAmount()
-      const dueDates = newInstalment.frequency === "custom" 
-        ? newInstalment.custom_due_dates.filter(date => date !== "")
-        : generateDueDates(newInstalment.start_date, newInstalment.frequency, newInstalment.instalments_count)
-      
-      if (dueDates.length !== newInstalment.instalments_count) {
-        setInstalmentError("Number of due dates must match installment count")
-        return
+      const paymentEntry = {
+        amount: newPartialPayment.payment_amount,
+        payment_date: newPartialPayment.payment_date,
+        description: newPartialPayment.description || undefined,
       }
 
-      const instalmentData = {
-        business_id: newInstalment.business_id,
-        month: newInstalment.month,
-        year: newInstalment.year,
-        total_amount: business.rent_amount,
-        instalment_amount: instalmentAmount,
-        instalments_count: newInstalment.instalments_count,
-        instalments_paid: 0,
-        start_date: newInstalment.start_date,
-        frequency: newInstalment.frequency,
-        due_dates: dueDates,
-        payment_status: Array(newInstalment.instalments_count).fill("pending") as ("pending" | "paid" | "overdue")[],
-        payment_dates: Array(newInstalment.instalments_count).fill(null) as (string | null)[],
-        description: newInstalment.description || undefined,
+      const partialPaymentData = {
+        business_id: newPartialPayment.business_id,
+        month: newPartialPayment.month,
+        year: newPartialPayment.year,
+        total_rent_amount: business.rent_amount,
+        payment_entries: [paymentEntry],
+        total_paid_amount: newPartialPayment.payment_amount,
+        description: newPartialPayment.description || undefined,
         status: "active" as const,
       }
 
-      const result = await createInstalment(instalmentData)
+      const result = await createPartialPayment(partialPaymentData)
       if (result) {
         await loadCustomerData()
         
         // Reset form
-        setNewInstalment({
+        setNewPartialPayment({
           business_id: "",
           month: new Date().getMonth() + 1,
           year: new Date().getFullYear(),
-          instalments_count: 4,
-          frequency: "weekly",
-          start_date: "",
+          payment_date: "",
+          payment_amount: 0,
           description: "",
-          custom_due_dates: ["", "", "", ""],
-          custom_amounts: [0, 0, 0, 0],
-          use_custom_amounts: false,
         })
-        setInstalmentError(null)
+        setPartialPaymentError(null)
       }
     } catch (err) {
-      console.error("[v0] Error adding installment:", err)
-      setInstalmentError(err instanceof Error ? err.message : "Failed to add installment")
+      console.error("[v0] Error creating partial payment:", err)
+      setPartialPaymentError(err instanceof Error ? err.message : "Failed to create partial payment")
     }
   }
 
-  const markInstalmentAsPaid = async (instalmentId: string, instalmentIndex: number) => {
+  const addPaymentToRecord = async (paymentAmount: number, paymentDate: string, description?: string) => {
+    if (!selectedPartialPayment) return
+
     try {
-      const instalment = instalments.find(i => i.id === instalmentId)
-      if (!instalment) return
+      const newPaymentEntry = {
+        amount: paymentAmount,
+        payment_date: paymentDate,
+        description: description || undefined,
+      }
 
-      const updatedPaymentStatus = [...instalment.payment_status]
-      const updatedPaymentDates = [...(instalment.payment_dates || [])]
-      
-      updatedPaymentStatus[instalmentIndex] = "paid"
-      updatedPaymentDates[instalmentIndex] = new Date().toISOString().split('T')[0]
-      
-      const newInstalmentsPaid = instalment.instalments_paid + 1
-      const newStatus = newInstalmentsPaid >= instalment.instalments_count ? "completed" : "active"
+      const updatedPaymentEntries = [...selectedPartialPayment.payment_entries, newPaymentEntry]
+      const newTotalPaid = selectedPartialPayment.total_paid_amount + paymentAmount
 
-      await updateInstalment(instalmentId, {
-        payment_status: updatedPaymentStatus,
-        payment_dates: updatedPaymentDates,
-        instalments_paid: newInstalmentsPaid,
-        status: newStatus,
+      await updatePartialPayment(selectedPartialPayment.id, {
+        payment_entries: updatedPaymentEntries,
+        total_paid_amount: newTotalPaid,
+        status: newTotalPaid >= selectedPartialPayment.total_rent_amount ? "completed" : "active",
       })
 
       await loadCustomerData()
+      setAddPaymentDialog(false)
+      setSelectedPartialPayment(null)
     } catch (err) {
-      console.error("[v0] Error updating installment payment:", err)
-      setError(err instanceof Error ? err.message : "Failed to update installment payment")
+      console.error("[v0] Error adding payment:", err)
+      setError(err instanceof Error ? err.message : "Failed to add payment")
     }
   }
 
-  const handleDeleteInstalment = async (id: string) => {
-    if (confirm("Are you sure you want to delete this rent installment? This action cannot be undone.")) {
+  const handleDeletePartialPayment = async (id: string) => {
+    if (confirm("Are you sure you want to delete this partial payment record? This action cannot be undone.")) {
       try {
-        await deleteInstalment(id)
+        await deletePartialPayment(id)
         await loadCustomerData()
       } catch (err) {
-        console.error("[v0] Error deleting installment:", err)
-        setError(err instanceof Error ? err.message : "Failed to delete installment")
+        console.error("[v0] Error deleting partial payment:", err)
+        setError(err instanceof Error ? err.message : "Failed to delete partial payment")
       }
     }
   }
@@ -1985,25 +1984,25 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
     </div>
   )
 
-  const renderInstalments = () => (
+  const renderPartialPayments = () => (
     <div className="space-y-6">
       <Card className="border-gray-200">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Setup Rent Installments</CardTitle>
+          <CardTitle className="text-lg font-semibold">Create New Partial Payment</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {instalmentError && (
+          {partialPaymentError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-red-600 text-sm">{instalmentError}</p>
+              <p className="text-red-600 text-sm">{partialPaymentError}</p>
             </div>
           )}
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="instalmentBusiness">Business</Label>
+              <Label htmlFor="partialPaymentBusiness">Business</Label>
               <Select
-                value={newInstalment.business_id}
-                onValueChange={(value) => setNewInstalment({ ...newInstalment, business_id: value })}
+                value={newPartialPayment.business_id}
+                onValueChange={(value) => setNewPartialPayment({ ...newPartialPayment, business_id: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select business" />
@@ -2019,10 +2018,10 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="instalmentMonth">Rent Month</Label>
+              <Label htmlFor="partialPaymentMonth">Rent Month</Label>
               <Select
-                value={newInstalment.month.toString()}
-                onValueChange={(value) => setNewInstalment({ ...newInstalment, month: Number.parseInt(value) })}
+                value={newPartialPayment.month.toString()}
+                onValueChange={(value) => setNewPartialPayment({ ...newPartialPayment, month: Number.parseInt(value) })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select month" />
@@ -2045,10 +2044,10 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="instalmentYear">Year</Label>
+              <Label htmlFor="partialPaymentYear">Year</Label>
               <Select
-                value={newInstalment.year.toString()}
-                onValueChange={(value) => setNewInstalment({ ...newInstalment, year: Number.parseInt(value) })}
+                value={newPartialPayment.year.toString()}
+                onValueChange={(value) => setNewPartialPayment({ ...newPartialPayment, year: Number.parseInt(value) })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select year" />
@@ -2067,377 +2066,146 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="instalmentCount">Number of Installments</Label>
-              <Select
-                value={newInstalment.instalments_count.toString()}
-                onValueChange={(value) => {
-                  const count = Number.parseInt(value)
-                  setNewInstalment({ 
-                    ...newInstalment, 
-                    instalments_count: count,
-                    custom_due_dates: Array(count).fill(""),
-                    custom_amounts: Array(count).fill(0)
-                  })
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select installment count" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="2">2 Installments</SelectItem>
-                  <SelectItem value="3">3 Installments</SelectItem>
-                  <SelectItem value="4">4 Installments</SelectItem>
-                  <SelectItem value="5">5 Installments</SelectItem>
-                  <SelectItem value="6">6 Installments</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="frequency">Payment Frequency</Label>
-              <Select
-                value={newInstalment.frequency}
-                onValueChange={(value) => setNewInstalment({ ...newInstalment, frequency: value as "weekly" | "bi-weekly" | "custom" })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select frequency" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="bi-weekly">Bi-Weekly (Every 2 weeks)</SelectItem>
-                  <SelectItem value="custom">Custom Dates</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="startDate">First Installment Due Date</Label>
+              <Label htmlFor="paymentDate">Payment Date</Label>
               <Input
-                id="startDate"
+                id="paymentDate"
                 type="date"
-                value={newInstalment.start_date}
-                onChange={(e) => setNewInstalment({ ...newInstalment, start_date: e.target.value })}
+                value={newPartialPayment.payment_date}
+                onChange={(e) => setNewPartialPayment({ ...newPartialPayment, payment_date: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="paymentAmount">Payment Amount</Label>
+              <Input
+                id="paymentAmount"
+                type="number"
+                step="0.01"
+                value={newPartialPayment.payment_amount}
+                onChange={(e) => setNewPartialPayment({ ...newPartialPayment, payment_amount: Number.parseFloat(e.target.value) || 0 })}
+                placeholder="Enter payment amount"
               />
             </div>
           </div>
           
-          {/* Show rent calculation preview */}
-          {newInstalment.business_id && (
+          {/* Show rent preview */}
+          {newPartialPayment.business_id && (
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <div className="flex items-center justify-between mb-2">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium text-blue-700">Monthly Rent:</span>
-                    <span className="ml-2 text-blue-600">PKR {getSelectedBusinessForInstalment()?.rent_amount.toLocaleString()}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-blue-700">
-                      {newInstalment.use_custom_amounts ? "Custom Amounts" : "Per Installment"}:
-                    </span>
-                    <span className="ml-2 text-blue-600">
-                      {newInstalment.use_custom_amounts 
-                        ? `PKR ${calculateCustomAmountsTotal().toLocaleString()}`
-                        : `PKR ${calculateInstalmentAmount().toLocaleString()}`
-                      }
-                    </span>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setNewInstalment({ 
-                    ...newInstalment, 
-                    use_custom_amounts: !newInstalment.use_custom_amounts,
-                    custom_amounts: newInstalment.use_custom_amounts 
-                      ? Array(newInstalment.instalments_count).fill(0)
-                      : Array(newInstalment.instalments_count).fill(calculateInstalmentAmount())
-                  })}
-                  className="text-blue-600 hover:text-blue-700"
-                >
-                  {newInstalment.use_custom_amounts ? "Use Equal Amounts" : "Customize Amounts"}
-                </Button>
-              </div>
-              
-              {newInstalment.use_custom_amounts && (
-                <div className="mt-3 pt-3 border-t border-blue-300">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-blue-700">Individual Amounts:</span>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={autoDistributeRemainingAmount}
-                        className="text-xs h-6 px-2 text-blue-600 hover:text-blue-700"
-                      >
-                        Auto Fill
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {Array.from({ length: newInstalment.instalments_count }, (_, index) => (
-                      <div key={index} className="space-y-1">
-                        <Label className="text-xs text-blue-600">Installment {index + 1}</Label>
-                        <Input
-                          type="text"
-                          value={newInstalment.custom_amounts[index] || ""}
-                          onChange={(e) => updateCustomAmount(index, Number.parseFloat(e.target.value) || 0)}
-                          placeholder="Amount"
-                          className="h-7 text-xs"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* Show total validation */}
-                  <div className="mt-3 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-blue-600">
-                        Total Custom Amounts: PKR {calculateCustomAmountsTotal().toLocaleString()}
-                      </span>
-                      <span className={`font-medium ${
-                        Math.abs(calculateCustomAmountsTotal() - (getSelectedBusinessForInstalment()?.rent_amount || 0)) < 0.01
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}>
-                        {Math.abs(calculateCustomAmountsTotal() - (getSelectedBusinessForInstalment()?.rent_amount || 0)) < 0.01
-                          ? "✓ Matches rent amount"
-                          : `Difference: PKR ${Math.abs(calculateCustomAmountsTotal() - (getSelectedBusinessForInstalment()?.rent_amount || 0)).toLocaleString()}`
-                        }
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Custom due dates for custom frequency */}
-          {newInstalment.frequency === "custom" && (
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Custom Due Dates</Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {Array.from({ length: newInstalment.instalments_count }, (_, index) => (
-                  <div key={index} className="space-y-1">
-                    <Label className="text-xs text-gray-600">Installment {index + 1}</Label>
-                    <Input
-                      type="date"
-                      value={newInstalment.custom_due_dates[index] || ""}
-                      onChange={(e) => {
-                        const newDates = [...newInstalment.custom_due_dates]
-                        newDates[index] = e.target.value
-                        setNewInstalment({ ...newInstalment, custom_due_dates: newDates })
-                      }}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {/* Show preview of generated due dates */}
-          {newInstalment.frequency !== "custom" && newInstalment.start_date && (
-            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
-              <Label className="text-sm font-medium text-green-700">Generated Due Dates:</Label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                {generateDueDates(newInstalment.start_date, newInstalment.frequency, newInstalment.instalments_count).map((date, index) => (
-                  <div key={index} className="text-xs text-green-600">
-                    #{index + 1}: {new Date(date).toLocaleDateString()}
-                  </div>
-                ))}
+              <div className="text-sm text-blue-700">
+                <span className="font-medium">Monthly Rent:</span>
+                <span className="ml-2 text-blue-600 font-semibold">PKR {getSelectedBusinessForPartialPayment()?.rent_amount.toLocaleString()}</span>
               </div>
             </div>
           )}
           
           <div className="space-y-2">
-            <Label htmlFor="instalmentDescription">Description (Optional)</Label>
+            <Label htmlFor="partialPaymentDescription">Description (Optional)</Label>
             <Input
-              id="instalmentDescription"
-              value={newInstalment.description}
-              onChange={(e) => setNewInstalment({ ...newInstalment, description: e.target.value })}
-              placeholder="Add notes about this installment plan"
+              id="partialPaymentDescription"
+              value={newPartialPayment.description}
+              onChange={(e) => setNewPartialPayment({ ...newPartialPayment, description: e.target.value })}
+              placeholder="Add notes about this payment"
             />
           </div>
           
-          <Button onClick={addRentInstalment} className="bg-blue-600 text-white hover:bg-blue-700">
+          <Button onClick={createPartialPaymentRecord} className="bg-blue-600 text-white hover:bg-blue-700">
             <Plus className="h-4 w-4 mr-2" />
-            Create Rent Installment Plan
+            Create Partial Payment Record
           </Button>
         </CardContent>
       </Card>
 
       <Card className="border-gray-200">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Active Rent Installments</CardTitle>
+          <CardTitle className="text-lg font-semibold">Partial Payment Records</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {instalments.length === 0 ? (
+            {partialPayments.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                <p>No rent installments found.</p>
-                <p className="text-sm">Create installment plans using the form above.</p>
+                <p>No partial payment records found.</p>
+                <p className="text-sm">Create partial payment records using the form above.</p>
               </div>
             ) : (
-              instalments.map((instalment) => {
-                const business = businesses.find((b) => b.id === instalment.business_id)
+              partialPayments.map((partialPayment) => {
+                const business = businesses.find((b) => b.id === partialPayment.business_id)
                 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
                                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-                const isExpanded = expandedInstalments.includes(instalment.id)
+                const remainingAmount = partialPayment.total_rent_amount - partialPayment.total_paid_amount
+                const statusColor = getStatusColor(partialPayment)
+                const statusVariant = getStatusBadgeVariant(partialPayment)
                 
                 return (
-                  <div key={instalment.id} className="border rounded-lg">
-                    {/* Installment Header */}
-                    <div 
-                      className="p-4 cursor-pointer hover:bg-gray-50"
-                      onClick={() => toggleInstalmentExpansion(instalment.id)}
-                    >
+                  <div key={partialPayment.id} className="border rounded-lg">
+                    <div className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                           <div>
                             <h3 className="font-semibold text-sm">
                               {business?.name || "Unknown Business"} - {business?.shop_number}
                             </h3>
                             <p className="text-xs text-gray-600">
-                              {monthNames[instalment.month - 1]} {instalment.year} • {instalment.frequency} payments
+                              {monthNames[partialPayment.month - 1]} {partialPayment.year}
                             </p>
                           </div>
                         </div>
                         
                         <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <div className="text-sm font-medium">PKR {instalment.instalment_amount.toLocaleString()}</div>
+                          <div className="text-right text-sm">
+                            <div className={`font-medium ${statusColor}`}>
+                              PKR {partialPayment.total_paid_amount.toLocaleString()} / {partialPayment.total_rent_amount.toLocaleString()}
+                            </div>
                             <div className="text-xs text-gray-500">
-                              {instalment.instalments_paid}/{instalment.instalments_count} paid
+                              Remaining: PKR {remainingAmount.toLocaleString()}
                             </div>
                           </div>
-                          <Badge
-                            variant={
-                              instalment.status === "completed" ? "default" :
-                              instalment.status === "active" ? "secondary" : "destructive"
-                            }
-                          >
-                            {instalment.status}
+                          <Badge variant={statusVariant}>
+                            {getPaymentStatus(partialPayment) === "completed" ? "Completed" : "Pending"}
                           </Badge>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDeleteInstalment(instalment.id)
+                            onClick={() => {
+                              setSelectedPartialPayment(partialPayment)
+                              setAddPaymentDialog(true)
                             }}
+                            className="text-blue-600 hover:text-blue-700"
+                            disabled={getPaymentStatus(partialPayment) === "completed"}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add Payment
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeletePartialPayment(partialPayment.id)}
                             className="text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
-                    </div>
-                    
-                    {/* Expanded Installment Details */}
-                    {isExpanded && (
-                      <div className="border-t bg-gray-50 p-4">
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div>
-                              <span className="font-medium text-gray-600">Total Rent:</span>
-                              <p className="text-green-600 font-medium">PKR {instalment.total_amount.toLocaleString()}</p>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-600">Per Installment:</span>
-                              <p className="text-blue-600 font-medium">PKR {instalment.instalment_amount.toLocaleString()}</p>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-600">Frequency:</span>
-                              <p className="font-medium">{instalment.frequency}</p>
-                            </div>
-
-                            <div>
-                              <span className="font-medium text-gray-600">Progress:</span>
-                              <p className="font-medium">{instalment.instalments_paid}/{instalment.instalments_count}</p>
-                            </div>
-                          </div>
-                          
-                          {instalment.description && (
-                            <div className="text-sm">
-                              <span className="font-medium text-gray-600">Notes:</span>
-                              <p className="text-gray-700 mt-1">{instalment.description}</p>
-                            </div>
-                          )}
-                          
-                          {/* Installment Schedule */}
-                          <div className="mt-4">
-                            <h5 className="font-medium text-sm mb-3">Payment Schedule</h5>
-                            <div className="grid gap-2">
-                              {instalment.due_dates.map((dueDate, index) => {
-                                const paymentStatus = instalment.payment_status[index]
-                                const paymentDate = instalment.payment_dates?.[index]
-                                const today = new Date().toISOString().split('T')[0]
-                                const isOverdue = paymentStatus === "pending" && dueDate < today
-                                
-                                return (
-                                  <div key={index} className={`flex items-center justify-between p-2 rounded-md border ${
-                                    paymentStatus === "paid" ? "bg-green-50 border-green-200" :
-                                    isOverdue ? "bg-red-50 border-red-200" :
-                                    "bg-white border-gray-200"
-                                  }`}>
-                                    <div className="flex items-center gap-3">
-                                      <Badge 
-                                        variant="outline" 
-                                        className={`w-6 h-6 rounded-full p-0 flex items-center justify-center text-xs ${
-                                          paymentStatus === "paid" ? "bg-green-100 text-green-700 border-green-300" :
-                                          isOverdue ? "bg-red-100 text-red-700 border-red-300" :
-                                          "bg-gray-100 text-gray-600 border-gray-300"
-                                        }`}
-                                      >
-                                        {index + 1}
-                                      </Badge>
-                                      <div>
-                                        <div className="text-sm font-medium">
-                                          Due: {new Date(dueDate).toLocaleDateString()}
-                                        </div>
-                                        {paymentDate && (
-                                          <div className="text-xs text-green-600">
-                                            Paid: {new Date(paymentDate).toLocaleDateString()}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm font-medium">
-                                        PKR {instalment.instalment_amount.toLocaleString()}
-                                      </span>
-                                      {paymentStatus === "pending" && (
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => markInstalmentAsPaid(instalment.id, index)}
-                                          className="text-green-600 hover:text-green-700 h-7 px-2"
-                                        >
-                                          Mark Paid
-                                        </Button>
-                                      )}
-                                      {paymentStatus === "paid" && (
-                                        <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-                                          Paid
-                                        </Badge>
-                                      )}
-                                      {isOverdue && (
-                                        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
-                                          Overdue
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
+                      
+                      {/* Payment Entries */}
+                      {partialPayment.payment_entries.length > 0 && (
+                        <div className="mt-4 pt-4 border-t">
+                          <h5 className="font-medium text-sm mb-3">Payment History</h5>
+                          <div className="space-y-2">
+                            {partialPayment.payment_entries.map((entry, index) => (
+                              <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                <div>
+                                  <div className="text-sm font-medium">PKR {entry.amount.toLocaleString()}</div>
+                                  <div className="text-xs text-gray-500">{new Date(entry.payment_date).toLocaleDateString()}</div>
+                                </div>
+                                {entry.description && (
+                                  <div className="text-xs text-gray-600 max-w-xs truncate">{entry.description}</div>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 )
               })
@@ -2445,6 +2213,21 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
           </div>
         </CardContent>
       </Card>
+      
+      {/* Add Payment Dialog */}
+      <Dialog open={addPaymentDialog} onOpenChange={setAddPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Additional Payment</DialogTitle>
+          </DialogHeader>
+          {selectedPartialPayment && (
+            <AddPaymentForm 
+              partialPayment={selectedPartialPayment}
+              onSubmit={addPaymentToRecord}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 
@@ -2546,48 +2329,64 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
     </div>
   )
 
-  const renderMeterLoad = () => (
-    <Card className="border-gray-200">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold">Meter Load Management</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Business</TableHead>
-              <TableHead>Shop</TableHead>
-              <TableHead>Current Load (KW)</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {businesses.map((business) => (
-              <TableRow key={business.id}>
-                <TableCell className="font-medium">{business.name}</TableCell>
-                <TableCell>{business.shop_number}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-yellow-500" />
-                    {/* Placeholder for meter load - would need separate table */}0 KW
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary">Not Connected</Badge>
-                </TableCell>
-                <TableCell>
-                  <Button variant="outline" size="sm">
-                    Update Load
-                  </Button>
-                </TableCell>
+  const renderMeterLoad = () => {
+    // Filter businesses to only show those with electricity management enabled
+    const electricityManagedBusinesses = businesses.filter(business => business.electricity_management)
+    
+    return (
+      <Card className="border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Meter Load Management</CardTitle>
+          <p className="text-sm text-gray-600">Only businesses with electricity management enabled are shown</p>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Business</TableHead>
+                <TableHead>Shop</TableHead>
+                <TableHead>Current Load (KW)</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  )
+            </TableHeader>
+            <TableBody>
+              {electricityManagedBusinesses.map((business) => (
+                <TableRow key={business.id}>
+                  <TableCell className="font-medium">{business.name}</TableCell>
+                  <TableCell>{business.shop_number}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-yellow-500" />
+                      {/* Placeholder for meter load - would need separate table */}0 KW
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">Not Connected</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="outline" size="sm">
+                      Update Load
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {electricityManagedBusinesses.length === 0 && (
+            <div className="text-center py-12 text-gray-500">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Zap className="h-10 w-10 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Electricity Managed Businesses</h3>
+              <p className="text-gray-600 mb-4">Only businesses with electricity management enabled will appear here.</p>
+              <p className="text-sm text-gray-500">Enable electricity management for businesses in the "View Businesses" section.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
 
   const renderContent = () => {
     switch (activeSubSection) {
@@ -2600,7 +2399,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
       case "customer-advance":
         return renderAdvance()
       case "customer-instalments":
-        return renderInstalments()
+        return renderPartialPayments()
       case "customer-theft":
         return renderTheft()
       case "customer-meter-load":

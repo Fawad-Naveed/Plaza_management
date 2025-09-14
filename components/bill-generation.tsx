@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
 import {
   Dialog,
   DialogContent,
@@ -29,7 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { FileText, Plus, Zap, Wrench, Search, Eye, Download, Loader2, Edit, Trash2, Printer, Flame } from "lucide-react"
-import { clientDb, type Business, type Bill as DBBill, type MeterReading, type Floor, type Advance, getInformation, type Information, updateMeterReading, type TermsCondition } from "@/lib/database"
+import { clientDb, type Business, type Bill as DBBill, type MeterReading, type Floor, type Advance, type PartialPayment, getInformation, type Information, updateMeterReading, type TermsCondition, getTCs, type TC } from "@/lib/database"
 import { TermsSelectionDialog } from "./terms-selection-dialog"
 
 declare global {
@@ -48,6 +49,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
   const [floors, setFloors] = useState<Floor[]>([])
   const [meterReadings, setMeterReadings] = useState<MeterReading[]>([])
   const [advances, setAdvances] = useState<Advance[]>([])
+  const [partialPayments, setPartialPayments] = useState<PartialPayment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -104,6 +106,14 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
     businessName: string;
   }>({ show: false, advance: null, businessName: "" })
   
+  // Add partial payment dialog state
+  const [addingPaymentToPartial, setAddingPaymentToPartial] = useState<PartialPayment | null>(null)
+  const [newPartialPaymentEntry, setNewPartialPaymentEntry] = useState({
+    amount: "",
+    payment_date: new Date().toISOString().split("T")[0],
+    description: ""
+  })
+  
   // Add tab state for rent management
   const [billsSubTab, setBillsSubTab] = useState("all")
   
@@ -112,6 +122,8 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
   const [selectedTerms, setSelectedTerms] = useState<TermsCondition[]>([])
   const [termsText, setTermsText] = useState("")
   const [billCreationLoading, setBillCreationLoading] = useState(false)
+  const [availableTerms, setAvailableTerms] = useState<TC[]>([])
+  const [selectedTermsIds, setSelectedTermsIds] = useState<string[]>([])
   
   // Form validation state
   const [validationErrors, setValidationErrors] = useState({
@@ -122,6 +134,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
 
   useEffect(() => {
     loadBillData()
+    loadTermsConditions()
     
     // Set bill type based on management mode
     if (isRentManagement) {
@@ -151,12 +164,13 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
       setLoading(true)
       setError(null)
 
-      const [businessesResult, billsResult, floorsResult, meterReadingsResult, advancesResult] = await Promise.all([
+      const [businessesResult, billsResult, floorsResult, meterReadingsResult, advancesResult, partialPaymentsResult] = await Promise.all([
         clientDb.getBusinesses(),
         clientDb.getBills(),
         clientDb.getFloors(),
         clientDb.getMeterReadings(),
         clientDb.getAdvances(),
+        clientDb.getPartialPayments(),
       ])
 
       if (businessesResult.error) throw businessesResult.error
@@ -164,17 +178,29 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
       if (floorsResult.error) throw floorsResult.error
       if (meterReadingsResult.error) throw meterReadingsResult.error
       if (advancesResult.error) throw advancesResult.error
+      if (partialPaymentsResult.error) throw partialPaymentsResult.error
 
       setBusinesses(businessesResult.data || [])
       setBills(billsResult.data || [])
       setFloors(floorsResult.data || [])
       setMeterReadings(meterReadingsResult.data || [])
       setAdvances(advancesResult.data || [])
+      setPartialPayments(partialPaymentsResult.data || [])
     } catch (err) {
       console.error("[v0] Error loading bill data:", err)
       setError(err instanceof Error ? err.message : "Failed to load bill data")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadTermsConditions = async () => {
+    try {
+      const terms = await getTCs()
+      setAvailableTerms(terms)
+    } catch (err) {
+      console.error("Error loading terms and conditions:", err)
+      // Don't set error state as this is optional functionality
     }
   }
 
@@ -260,6 +286,68 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
     setValidationErrors(prev => ({ ...prev, [field]: false }))
   }
 
+  // Handle adding payment to partial payment record
+  const handleAddPaymentToPartial = async () => {
+    if (!addingPaymentToPartial || !newPartialPaymentEntry.amount) {
+      alert("Please enter a payment amount")
+      return
+    }
+
+    const paymentAmount = parseFloat(newPartialPaymentEntry.amount)
+    if (paymentAmount <= 0) {
+      alert("Payment amount must be greater than 0")
+      return
+    }
+
+    const remainingAmount = addingPaymentToPartial.total_rent_amount - addingPaymentToPartial.total_paid_amount
+    if (paymentAmount > remainingAmount) {
+      alert(`Payment amount cannot exceed remaining amount of PKR ${remainingAmount.toFixed(2)}`)
+      return
+    }
+
+    try {
+      // Create new payment entry
+      const newPaymentEntry = {
+        amount: paymentAmount,
+        payment_date: newPartialPaymentEntry.payment_date,
+        description: newPartialPaymentEntry.description || undefined
+      }
+
+      // Update partial payment with new payment entry
+      const updatedPaymentEntries = [...addingPaymentToPartial.payment_entries, newPaymentEntry]
+      const updatedTotalPaid = addingPaymentToPartial.total_paid_amount + paymentAmount
+      const updatedStatus = updatedTotalPaid >= addingPaymentToPartial.total_rent_amount ? "completed" : "active"
+
+      const { error } = await clientDb.updatePartialPayment(addingPaymentToPartial.id, {
+        payment_entries: updatedPaymentEntries,
+        total_paid_amount: updatedTotalPaid,
+        status: updatedStatus as "active" | "completed" | "cancelled"
+      })
+
+      if (error) {
+        console.error("Error updating partial payment:", error)
+        alert("Failed to add payment. Please try again.")
+        return
+      }
+
+      // Reload data to reflect changes
+      await loadBillData()
+
+      // Close dialog and reset form
+      setAddingPaymentToPartial(null)
+      setNewPartialPaymentEntry({
+        amount: "",
+        payment_date: new Date().toISOString().split("T")[0],
+        description: ""
+      })
+
+      alert(`Payment of PKR ${paymentAmount.toFixed(2)} added successfully!`)
+    } catch (error) {
+      console.error("Error adding payment to partial payment:", error)
+      alert("Failed to add payment. Please try again.")
+    }
+  }
+
   const handleCreateBillClick = () => {
     // Set current year automatically
     const currentYear = new Date().getFullYear().toString()
@@ -287,9 +375,11 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
       // Update the state with current year
       setNewBill(billWithYear)
       
-      // Skip terms dialog for rent management - directly create the bill
+      // For rent management, use selected terms from toggles
       if (isRentManagement || billWithYear.billType === "rent") {
-        createBillWithTerms([], "")
+        const selectedTermsData = availableTerms.filter(term => selectedTermsIds.includes(term.id))
+        const termsText = selectedTermsData.map(term => `${term.title}: ${term.description || ''}`).join('\n\n')
+        createBillWithTerms(selectedTermsData, termsText)
       } else {
         // Show terms selection dialog before creating the bill for other bill types
         setShowTermsDialog(true)
@@ -312,7 +402,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
     setTermsText("")
   }
 
-  const createBillWithTerms = async (terms: TermsCondition[], termsTextValue: string) => {
+  const createBillWithTerms = async (terms: (TermsCondition | TC)[], termsTextValue: string) => {
     // Ensure current year is used
     const currentYear = new Date().getFullYear().toString()
     const billToProcess = { ...newBill, year: currentYear }
@@ -387,8 +477,8 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
             ? totalAmount // For rent bills, totalAmount already includes rent via maintenanceCharges
             : totalAmount + (business.rent_amount || 0)) || 0, // For other bills, add rent_amount separately
           status: "pending" as const,
-          // terms_conditions_ids: terms.map(t => t.id) || [], // Commented out - column doesn't exist yet
-          // terms_conditions_text: termsTextValue || "", // Commented out - column doesn't exist yet
+          terms_conditions_ids: terms.map(t => t.id) || null,
+          terms_conditions_text: termsTextValue || null,
         }
 
         // Validate required fields
@@ -421,6 +511,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
         })
         setSelectedTerms([])
         setTermsText("")
+        setSelectedTermsIds([])
         setValidationErrors({ businessId: false, month: false, dueDate: false })
       } catch (err) {
         console.error("[v0] Error creating bill:", err)
@@ -700,6 +791,23 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
     }
   }
 
+  // Helper function to get bill terms from stored IDs
+  const getBillTerms = async (bill: DBBill): Promise<TC[]> => {
+    if (!bill.terms_conditions_ids || bill.terms_conditions_ids.length === 0) {
+      return []
+    }
+    
+    try {
+      // Get all available terms
+      const allTerms = await getTCs()
+      // Filter to only include terms that were selected for this bill
+      return allTerms.filter(term => bill.terms_conditions_ids!.includes(term.id))
+    } catch (error) {
+      console.error("Error loading bill terms:", error)
+      return []
+    }
+  }
+
   const downloadPDF = async (bill: DBBill) => {
     try {
       // Import jsPDF dynamically with error handling
@@ -712,6 +820,9 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
 
       const doc = new jsPDF()
       const business = businesses.find((b) => b.id === bill.business_id)
+      
+      // Get terms for this bill
+      const billTerms = await getBillTerms(bill)
 
       // Get business information for branding
       let businessInfo: Information | null = null
@@ -828,6 +939,48 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
       yPos += 10
       doc.setFontSize(14)
       doc.text(`Total Amount: PKR ${bill.total_amount.toFixed(2)}`, 20, yPos)
+
+      // Terms and conditions section (if any terms are associated with this bill)
+      if (billTerms.length > 0) {
+        yPos += 20
+        doc.setFontSize(12)
+        doc.setFont(undefined, 'bold')
+        doc.text("Terms and Conditions:", 20, yPos)
+        doc.setFont(undefined, 'normal')
+        yPos += 10
+        
+        doc.setFontSize(9)
+        billTerms.forEach((term, index) => {
+          // Check if we need a new page
+          if (yPos > 250) {
+            doc.addPage()
+            yPos = 30
+            doc.setFontSize(12)
+            doc.setFont(undefined, 'bold')
+            doc.text("Terms and Conditions (continued):", 20, yPos)
+            doc.setFont(undefined, 'normal')
+            yPos += 15
+            doc.setFontSize(9)
+          }
+          
+          // Add term title
+          doc.setFont(undefined, 'bold')
+          doc.text(`${index + 1}. ${term.title}`, 20, yPos)
+          doc.setFont(undefined, 'normal')
+          yPos += 5
+          
+          // Add term description if available
+          if (term.description) {
+            const descriptionLines = doc.splitTextToSize(term.description, 170)
+            doc.text(descriptionLines, 25, yPos)
+            yPos += descriptionLines.length * 4
+          }
+          
+          yPos += 5 // Space between terms
+        })
+        
+        yPos += 10
+      }
 
       // Footer
       yPos += 20
@@ -1154,6 +1307,14 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
      getBusinessShop(advance.business_id).toLowerCase().includes(searchTerm.toLowerCase()))
   ) : []
 
+  // Get partial payments for rent management mode
+  const filteredPartialPayments = isRentManagement ? partialPayments.filter(partialPayment => 
+    partialPayment.status === "active" &&
+    (searchTerm === "" || 
+     getBusinessName(partialPayment.business_id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+     getBusinessShop(partialPayment.business_id).toLowerCase().includes(searchTerm.toLowerCase()))
+  ) : []
+
   // Filter bills by status for rent management
   const paidBills = filteredBills.filter(bill => bill.status === "paid")
   const unpaidBills = filteredBills.filter(bill => bill.status === "pending" || bill.status === "overdue")
@@ -1165,6 +1326,14 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
   // Filter gas meter readings by status for gas management
   const paidGasMeterReadings = filteredGasMeterReadings.filter(reading => reading.payment_status === "paid")
   const unpaidGasMeterReadings = filteredGasMeterReadings.filter(reading => reading.payment_status === "pending" || reading.payment_status === "overdue" || !reading.payment_status)
+
+  // Filter partial payments by status
+  const paidPartialPayments = filteredPartialPayments.filter(partialPayment => 
+    partialPayment.total_paid_amount >= partialPayment.total_rent_amount
+  )
+  const unpaidPartialPayments = filteredPartialPayments.filter(partialPayment => 
+    partialPayment.total_paid_amount < partialPayment.total_rent_amount
+  )
 
   // Get bills based on current sub-tab
   const getCurrentBills = () => {
@@ -1217,6 +1386,20 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
         return [] // Advances don't show in unpaid tab
       default:
         return rentAdvances // Show all advances in "all" tab
+    }
+  }
+
+  // Get current partial payments based on sub-tab (only for rent management)
+  const getCurrentPartialPayments = () => {
+    if (!isRentManagement) return []
+    
+    switch (billsSubTab) {
+      case "paid":
+        return paidPartialPayments
+      case "unpaid":
+        return unpaidPartialPayments
+      default:
+        return filteredPartialPayments
     }
   }
 
@@ -1528,6 +1711,52 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
           </div>
         )}
 
+        {/* Terms & Conditions Section - only show for rent management */}
+        {isRentManagement && availableTerms.length > 0 && (
+          <div className="space-y-4 p-4 border rounded-lg">
+            <h3 className="font-semibold flex items-center gap-2">
+              <FileText className="h-4 w-4 text-purple-500" />
+              Terms & Conditions
+            </h3>
+            <p className="text-sm text-gray-600">
+              Select the terms and conditions to include in this bill:
+            </p>
+            <div className="space-y-3">
+              {availableTerms.map((term) => (
+                <div key={term.id} className="flex items-start space-x-3 p-3 border rounded-lg">
+                  <Switch
+                    id={`term-${term.id}`}
+                    checked={selectedTermsIds.includes(term.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedTermsIds([...selectedTermsIds, term.id])
+                      } else {
+                        setSelectedTermsIds(selectedTermsIds.filter(id => id !== term.id))
+                      }
+                    }}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor={`term-${term.id}`} className="text-sm font-medium cursor-pointer">
+                      {term.title}
+                    </Label>
+                    {term.description && (
+                      <p className="text-sm text-gray-500 mt-1">{term.description}</p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-1">
+                      Effective Date: {new Date(term.effective_date).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {selectedTermsIds.length > 0 && (
+              <div className="text-sm text-green-600">
+                {selectedTermsIds.length} term{selectedTermsIds.length !== 1 ? 's' : ''} selected
+              </div>
+            )}
+          </div>
+        )}
+
         {!isElectricityManagement && (
           <div className="space-y-4 p-4 border rounded-lg">
             <h3 className="font-semibold">Additional Charges</h3>
@@ -1597,6 +1826,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
               onClick={() => {
                 setIsEditMode(false)
                 setEditingBill(null)
+                setSelectedTermsIds([])
                 setNewBill({
                   businessId: "",
                   billType: "electricity",
@@ -1997,6 +2227,90 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                 </TableRow>
               )
             })}
+            {/* Partial Payments - only for rent management */}
+            {!isElectricityManagement && !isGasManagement && getCurrentPartialPayments().map((partialPayment) => {
+              const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+              const remainingAmount = partialPayment.total_rent_amount - partialPayment.total_paid_amount
+              const isFullyPaid = remainingAmount <= 0
+              
+              return (
+                <TableRow key={`partial-payment-${partialPayment.id}`} className="bg-purple-50">
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <span>PP-{partialPayment.year}-{partialPayment.id.slice(-3).toUpperCase()}</span>
+                      <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+                        Partial Payment
+                      </Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{getBusinessName(partialPayment.business_id)}</div>
+                      <div className="text-sm text-gray-500">
+                        {getBusinessShop(partialPayment.business_id)} • {monthNames[partialPayment.month - 1]} {partialPayment.year}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>PKR {partialPayment.total_rent_amount.toFixed(2)}</TableCell>
+                  <TableCell>
+                    <Badge variant={isFullyPaid ? "default" : "secondary"} className={isFullyPaid ? "bg-green-600" : "bg-yellow-500"}>
+                      {isFullyPaid ? "Fully Paid" : "Partially Paid"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={isFullyPaid ? "bg-green-100 text-green-700 border-green-300" : "bg-orange-100 text-orange-700 border-orange-300"}>
+                          Paid: PKR {partialPayment.total_paid_amount.toFixed(2)}
+                        </Badge>
+                      </div>
+                      {!isFullyPaid && (
+                        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
+                          Remaining: PKR {remainingAmount.toFixed(2)}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>{new Date(partialPayment.created_at).toISOString().split('T')[0]}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          // Show partial payment details
+                          const paymentsList = partialPayment.payment_entries.map((entry, index) => 
+                            `Payment ${index + 1}: PKR ${entry.amount} on ${entry.payment_date}${entry.description ? ` (${entry.description})` : ''}`
+                          ).join('\n')
+                          alert(`Partial Payment Details:\n\nBusiness: ${getBusinessName(partialPayment.business_id)}\nMonth/Year: ${monthNames[partialPayment.month - 1]} ${partialPayment.year}\nTotal Rent: PKR ${partialPayment.total_rent_amount.toLocaleString()}\nTotal Paid: PKR ${partialPayment.total_paid_amount.toLocaleString()}\nRemaining: PKR ${remainingAmount.toLocaleString()}\n\nPayments Made:\n${paymentsList}\n\n${partialPayment.description ? `Notes: ${partialPayment.description}` : ''}`)
+                        }}
+                        title="View Partial Payment Details"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {!isFullyPaid && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="bg-green-50 text-green-700 hover:bg-green-100"
+                          onClick={() => {
+                            setAddingPaymentToPartial(partialPayment)
+                            setNewPartialPaymentEntry({
+                              amount: "",
+                              payment_date: new Date().toISOString().split("T")[0],
+                              description: ""
+                            })
+                          }}
+                          title="Add Payment"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
             {/* Advance Payments - only for rent management */}
             {!isElectricityManagement && !isGasManagement && getCurrentAdvances().map((advance) => {
               const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -2055,10 +2369,10 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
             })}
           </TableBody>
         </Table>
-        {getCurrentBills().length === 0 && getCurrentAdvances().length === 0 && getCurrentMeterReadings().length === 0 && getCurrentGasMeterReadings().length === 0 && (
+        {getCurrentBills().length === 0 && getCurrentAdvances().length === 0 && getCurrentPartialPayments().length === 0 && getCurrentMeterReadings().length === 0 && getCurrentGasMeterReadings().length === 0 && (
           <div className="text-center py-8 text-gray-500">
             <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>{isElectricityManagement ? "No electricity bills found." : isGasManagement ? "No gas bills found." : "No bills or advances found."}</p>
+            <p>{isElectricityManagement ? "No electricity bills found." : isGasManagement ? "No gas bills found." : "No bills, advances, or partial payments found."}</p>
             <p className="text-sm">Try adjusting your search or create a new bill.</p>
           </div>
         )}
@@ -2081,7 +2395,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                 <div className={`text-xl font-bold ${billsSubTab === "unpaid" ? "text-red-600" : "text-green-600"}`}>
                   {isElectricityManagement ? getCurrentBills().length + getCurrentMeterReadings().length : 
                    isGasManagement ? getCurrentBills().length + getCurrentGasMeterReadings().length : 
-                   getCurrentBills().length}
+                   getCurrentBills().length + getCurrentPartialPayments().length}
                 </div>
               </div>
             </div>
@@ -2097,7 +2411,10 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                   PKR {(
                     getCurrentBills().reduce((sum, bill) => sum + bill.total_amount, 0) +
                     (isElectricityManagement ? getCurrentMeterReadings().reduce((sum, reading) => sum + reading.amount, 0) : 0) +
-                    (isGasManagement ? getCurrentGasMeterReadings().reduce((sum, reading) => sum + reading.amount, 0) : 0)
+                    (isGasManagement ? getCurrentGasMeterReadings().reduce((sum, reading) => sum + reading.amount, 0) : 0) +
+                    (billsSubTab === "paid" ? getCurrentPartialPayments().reduce((sum, pp) => sum + pp.total_paid_amount, 0) : 
+                     billsSubTab === "unpaid" ? getCurrentPartialPayments().reduce((sum, pp) => sum + (pp.total_rent_amount - pp.total_paid_amount), 0) :
+                     getCurrentPartialPayments().reduce((sum, pp) => sum + pp.total_rent_amount, 0))
                   ).toFixed(2)}
                 </div>
               </div>
@@ -2113,10 +2430,14 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                     const billsTotal = getCurrentBills().reduce((sum, bill) => sum + bill.total_amount, 0)
                     const readingsTotal = isElectricityManagement ? getCurrentMeterReadings().reduce((sum, reading) => sum + reading.amount, 0) : 
                                         isGasManagement ? getCurrentGasMeterReadings().reduce((sum, reading) => sum + reading.amount, 0) : 0
+                    const partialPaymentsTotal = billsSubTab === "paid" ? getCurrentPartialPayments().reduce((sum, pp) => sum + pp.total_paid_amount, 0) : 
+                                                billsSubTab === "unpaid" ? getCurrentPartialPayments().reduce((sum, pp) => sum + (pp.total_rent_amount - pp.total_paid_amount), 0) :
+                                                getCurrentPartialPayments().reduce((sum, pp) => sum + pp.total_rent_amount, 0)
                     const totalCount = getCurrentBills().length + 
                                      (isElectricityManagement ? getCurrentMeterReadings().length : 0) +
-                                     (isGasManagement ? getCurrentGasMeterReadings().length : 0)
-                    return totalCount > 0 ? ((billsTotal + readingsTotal) / totalCount).toFixed(2) : "0.00"
+                                     (isGasManagement ? getCurrentGasMeterReadings().length : 0) +
+                                     getCurrentPartialPayments().length
+                    return totalCount > 0 ? ((billsTotal + readingsTotal + partialPaymentsTotal) / totalCount).toFixed(2) : "0.00"
                   })()}
                 </div>
               </div>
@@ -2142,7 +2463,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                   ? `All (${filteredBills.length + filteredMeterReadings.length})`
                   : isGasManagement
                   ? `All (${filteredBills.length + filteredGasMeterReadings.length})`
-                  : `All (${filteredBills.length + rentAdvances.length})`
+                  : `All (${filteredBills.length + rentAdvances.length + filteredPartialPayments.length})`
                 }
               </TabsTrigger>
               <TabsTrigger value="unpaid">
@@ -2150,7 +2471,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                   ? `Unpaid (${unpaidBills.length + unpaidMeterReadings.length})`
                   : isGasManagement
                   ? `Unpaid (${unpaidBills.length + unpaidGasMeterReadings.length})`
-                  : `Unpaid (${unpaidBills.length})`
+                  : `Unpaid (${unpaidBills.length + unpaidPartialPayments.length})`
                 }
               </TabsTrigger>
               <TabsTrigger value="paid">
@@ -2158,7 +2479,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                   ? `Paid (${paidBills.length + paidMeterReadings.length})`
                   : isGasManagement
                   ? `Paid (${paidBills.length + paidGasMeterReadings.length})`
-                  : `Paid (${paidBills.length + rentAdvances.length})`
+                  : `Paid (${paidBills.length + rentAdvances.length + paidPartialPayments.length})`
                 }
               </TabsTrigger>
             </TabsList>
@@ -2497,6 +2818,82 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Payment to Partial Payment Dialog */}
+      <Dialog open={!!addingPaymentToPartial} onOpenChange={(open) => !open && setAddingPaymentToPartial(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Payment</DialogTitle>
+            <DialogDescription>
+              Add a payment to the partial payment record for {addingPaymentToPartial ? getBusinessName(addingPaymentToPartial.business_id) : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {addingPaymentToPartial && (
+            <div className="space-y-4">
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Total Rent:</span>
+                    <br />PKR {addingPaymentToPartial.total_rent_amount.toFixed(2)}
+                  </div>
+                  <div>
+                    <span className="font-medium">Already Paid:</span>
+                    <br />PKR {addingPaymentToPartial.total_paid_amount.toFixed(2)}
+                  </div>
+                  <div className="col-span-2">
+                    <span className="font-medium">Remaining Amount:</span>
+                    <br />PKR {(addingPaymentToPartial.total_rent_amount - addingPaymentToPartial.total_paid_amount).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="paymentAmount">Payment Amount (PKR) *</Label>
+                <Input
+                  id="paymentAmount"
+                  type="number"
+                  step="0.01"
+                  value={newPartialPaymentEntry.amount}
+                  onChange={(e) => setNewPartialPaymentEntry({ ...newPartialPaymentEntry, amount: e.target.value })}
+                  placeholder="Enter payment amount"
+                  max={addingPaymentToPartial.total_rent_amount - addingPaymentToPartial.total_paid_amount}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="paymentDate">Payment Date *</Label>
+                <Input
+                  id="paymentDate"
+                  type="date"
+                  value={newPartialPaymentEntry.payment_date}
+                  onChange={(e) => setNewPartialPaymentEntry({ ...newPartialPaymentEntry, payment_date: e.target.value })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="paymentDescription">Description (Optional)</Label>
+                <Input
+                  id="paymentDescription"
+                  value={newPartialPaymentEntry.description}
+                  onChange={(e) => setNewPartialPaymentEntry({ ...newPartialPaymentEntry, description: e.target.value })}
+                  placeholder="Add a note for this payment"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddingPaymentToPartial(null)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddPaymentToPartial}
+              disabled={!newPartialPaymentEntry.amount || !newPartialPaymentEntry.payment_date}
+            >
+              Add Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Terms Selection Dialog */}
       <TermsSelectionDialog

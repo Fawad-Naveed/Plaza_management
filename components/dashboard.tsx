@@ -21,6 +21,7 @@ const Pie = dynamic(() => import("recharts").then(m => m.Pie), { ssr: false })
 const Cell = dynamic(() => import("recharts").then(m => m.Cell), { ssr: false })
 import { Users, UserCheck, UserX, Building, Zap, Plus, FileText, CreditCard, Loader2 } from "lucide-react"
 import { clientDb, type Business, type Floor, type Bill, type MaintenanceBill, type Advance } from "@/lib/database"
+import { RevenueInsights } from "@/components/revenue-insights"
 
 export function Dashboard() {
   const [businesses, setBusinesses] = useState<Business[]>([])
@@ -177,308 +178,301 @@ export function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-black">Dashboard</h1>
-      </div>
-
-      {/* Settings Section */}
-      <Card className="border-gray-200">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold flex items-center justify-between">
-            Floor Settings
-            <Dialog open={showAddFloorDialog} onOpenChange={setShowAddFloorDialog}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="flex items-center gap-2 bg-transparent">
-                  <Plus className="h-4 w-4" />
-                  Add Floor
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Floor</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="floorName">Floor Name</Label>
-                    <Input
-                      id="floorName"
-                      value={newFloor.name}
-                      onChange={(e) => setNewFloor({ ...newFloor, name: e.target.value })}
-                      placeholder="e.g., Fourth Floor, Basement"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="numberOfShops">Number of Shops</Label>
-                    <Input
-                      id="numberOfShops"
-                      type="number"
-                      value={newFloor.shops}
-                      onChange={(e) => setNewFloor({ ...newFloor, shops: e.target.value })}
-                      placeholder="Enter number of shops"
-                      min="1"
-                    />
-                  </div>
-                  <Button onClick={addFloor} className="w-full bg-black text-white hover:bg-gray-800">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Floor
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {floors.map((floor) => {
-            const floorBusinesses = businesses.filter((b) => b.floor_number === floor.floor_number)
-            return (
-              <div key={floor.id} className="flex items-center gap-3 justify-between">
-                <div className="flex items-center gap-3">
-                  <Label className="w-24 text-sm font-medium">{floor.floor_name}:</Label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{floor.total_shops || "0"}</span>
-                    <span className="text-sm text-gray-600">total shops</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <span className="font-medium">{floorBusinesses.length}</span>
-                  <span>occupied</span>
-                </div>
-              </div>
-            )
-          })}
-          {floors.length === 0 && (
-            <p className="text-sm text-gray-500">No floors configured yet. Add your first floor above.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-gray-200">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-black rounded-lg">
-                <Users className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Customers</p>
-                <p className="text-2xl font-bold text-black">{customerStats.total}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-gray-200">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-600 rounded-lg">
-                <UserCheck className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Paid Customers</p>
-                <p className="text-2xl font-bold text-green-600">{customerStats.paid}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-gray-200">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-red-600 rounded-lg">
-                <UserX className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Unpaid Customers</p>
-                <p className="text-2xl font-bold text-red-600">{customerStats.unpaid}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Floor-wise Occupancy Chart - Full Width */}
-      <div className="grid grid-cols-1 gap-6">
-        <Card className="border-gray-200">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Floor-wise Occupancy</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={floorData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="floor" height={60} />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="occupied" fill="#000000" name="Occupied" />
-                <Bar dataKey="total" fill="#cccccc" name="Total" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Bills Information */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-gray-200">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Rent Management Bills</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={[
-                    {
-                      name: "Paid",
-                      value: bills.filter((bill) => bill.status === "paid").length,
-                      fill: "#16a34a"
-                    },
-                    {
-                      name: "Unpaid",
-                      value: bills.filter((bill) => bill.status !== "paid").length,
-                      fill: "#dc2626"
-                    }
-                  ]}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
-                >
-                  <Cell fill="#16a34a" />
-                  <Cell fill="#dc2626" />
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card className="border-gray-200">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Maintenance Management Bills</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={[
-                    {
-                      name: "Paid",
-                      value: maintenanceBills.filter((bill) => bill.status === "paid").length,
-                      fill: "#16a34a"
-                    },
-                    {
-                      name: "Unpaid",
-                      value: maintenanceBills.filter((bill) => bill.status !== "paid").length,
-                      fill: "#dc2626"
-                    }
-                  ]}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
-                >
-                  <Cell fill="#16a34a" />
-                  <Cell fill="#dc2626" />
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Rent Advance Payments Chart */}
-      <div className="grid grid-cols-1 gap-6">
-        <Card className="border-gray-200">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Rent Advance Payments by Floor</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={rentAdvanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="floor" height={60} />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value, name) => {
-                    const labels = {
-                      withAdvance: 'With Advance',
-                      withoutAdvance: 'Without Advance',
-                      totalOccupants: 'Total Occupants'
-                    }
-                    return [value, labels[name] || name]
-                  }}
-                />
-                <Legend 
-                  formatter={(value) => {
-                    const labels = {
-                      withAdvance: 'With Advance',
-                      withoutAdvance: 'Without Advance'
-                    }
-                    return labels[value] || value
-                  }}
-                />
-                <Bar dataKey="withAdvance" fill="#16a34a" name="withAdvance" />
-                <Bar dataKey="withoutAdvance" fill="#dc2626" name="withoutAdvance" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Floor Details Table */}
-      <Card className="border-gray-200">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Floor Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left p-3 font-semibold">Floor</th>
-                  <th className="text-left p-3 font-semibold">Total Shops</th>
-                  <th className="text-left p-3 font-semibold">Occupied</th>
-                  <th className="text-left p-3 font-semibold">Electricity Users</th>
-                  <th className="text-left p-3 font-semibold">Occupancy Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {floorData.map((floor) => (
-                  <tr key={floor.floor} className="border-b border-gray-100">
-                    <td className="p-3 font-medium">{floor.floor}</td>
-                    <td className="p-3">{floor.total}</td>
-                    <td className="p-3">{floor.occupied}</td>
-                    <td className="p-3 flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-yellow-500" />
-                      {floor.electricityUsers}
-                    </td>
-                    <td className="p-3">
-                      <span className="text-sm font-medium">
-                        {floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {floorData.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <Building className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No floors configured yet.</p>
-                <p className="text-sm">Add floors using the Floor Settings above.</p>
-              </div>
-            )}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
+            <p className="text-lg text-gray-600 mt-2">Plaza Management Overview</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
+      {/* Revenue Insights Section - Main Feature */}
+      <RevenueInsights />
+
+        {/* Floor Details Section */}
+        <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden hover:scale-[1.02] transition-all duration-300 ease-out hover:shadow-2xl">
+          <CardHeader className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 border-b border-gray-200 px-6 py-6">
+            <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+              <Building className="h-6 w-6 text-blue-600" />
+              Floor Details
+            </CardTitle>
+            <p className="text-sm text-gray-600 mt-1">Overview of all floors and occupancy</p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Floor</th>
+                    <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Total Shops</th>
+                    <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Occupied</th>
+                    <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Electricity Users</th>
+                    <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Occupancy Rate</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {floorData.map((floor, index) => (
+                    <tr key={floor.floor} className={`hover:bg-blue-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                      <td className="py-4 px-6 font-semibold text-gray-900">{floor.floor}</td>
+                      <td className="py-4 px-6 text-gray-700">{floor.total}</td>
+                      <td className="py-4 px-6">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          {floor.occupied}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <Zap className="h-4 w-4 text-yellow-500" />
+                          <span className="text-gray-700">{floor.electricityUsers}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2 min-w-[60px]">
+                            <div 
+                              className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300" 
+                              style={{ width: `${floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-semibold text-gray-900 min-w-[3rem]">
+                            {floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {floors.length === 0 && (
+                <div className="text-center py-12">
+                  <Building className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium text-gray-600">No floors configured yet</p>
+                  <p className="text-sm text-gray-500 mt-1">Floors will appear here once they are added to your system</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-white shadow-lg border-0 rounded-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 ease-out overflow-hidden cursor-pointer">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <Users className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">Total Customers</p>
+                    <p className="text-3xl font-bold text-gray-900 mt-1">{customerStats.total}</p>
+                  </div>
+                </div>
+                <div className="h-12 w-1 bg-gradient-to-b from-slate-400 to-slate-600 rounded-full"></div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white shadow-lg border-0 rounded-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 ease-out overflow-hidden cursor-pointer">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <UserCheck className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">Paid Customers</p>
+                    <p className="text-3xl font-bold text-green-600 mt-1">{customerStats.paid}</p>
+                  </div>
+                </div>
+                <div className="h-12 w-1 bg-gradient-to-b from-green-400 to-green-600 rounded-full"></div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white shadow-lg border-0 rounded-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 ease-out overflow-hidden cursor-pointer">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <UserX className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">Unpaid Customers</p>
+                    <p className="text-3xl font-bold text-red-600 mt-1">{customerStats.unpaid}</p>
+                  </div>
+                </div>
+                <div className="h-12 w-1 bg-gradient-to-b from-red-400 to-red-600 rounded-full"></div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Floor-wise Occupancy Chart */}
+        <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden hover:scale-[1.01] transition-all duration-300 ease-out hover:shadow-2xl">
+          <CardHeader className="bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border-b border-gray-200 px-6 py-6">
+            <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+              <Building className="h-6 w-6 text-blue-600" />
+              Floor-wise Occupancy Analysis
+            </CardTitle>
+            <p className="text-sm text-gray-600 mt-1">Visual representation of shop occupancy across floors</p>
+          </CardHeader>
+          <CardContent className="p-6">
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={floorData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis 
+                  dataKey="floor" 
+                  height={60} 
+                  tick={{ fontSize: 12, fill: '#6b7280' }}
+                  axisLine={{ stroke: '#d1d5db' }}
+                />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: '#6b7280' }}
+                  axisLine={{ stroke: '#d1d5db' }}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                  }}
+                />
+                <Bar dataKey="occupied" fill="url(#occupiedGradient)" name="Occupied" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="total" fill="#e5e7eb" name="Total" radius={[4, 4, 0, 0]} />
+                <defs>
+                  <linearGradient id="occupiedGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#3b82f6" />
+                    <stop offset="100%" stopColor="#1d4ed8" />
+                  </linearGradient>
+                </defs>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Bills Information */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden hover:scale-[1.02] transition-all duration-300 ease-out hover:shadow-2xl">
+            <CardHeader className="bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 border-b border-gray-200 px-6 py-6">
+              <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                <FileText className="h-6 w-6 text-green-600" />
+                Rent Management Bills
+              </CardTitle>
+              <p className="text-sm text-gray-600 mt-1">Payment status distribution</p>
+            </CardHeader>
+            <CardContent className="p-6">
+              <ResponsiveContainer width="100%" height={320}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      {
+                        name: "Paid",
+                        value: bills.filter((bill) => bill.status === "paid").length,
+                        fill: "url(#paidGradient)"
+                      },
+                      {
+                        name: "Unpaid",
+                        value: bills.filter((bill) => bill.status !== "paid").length,
+                        fill: "url(#unpaidGradient)"
+                      }
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={90}
+                    dataKey="value"
+                    label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                    labelLine={false}
+                  >
+                    <Cell fill="url(#paidGradient)" />
+                    <Cell fill="url(#unpaidGradient)" />
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+                  <defs>
+                    <linearGradient id="paidGradient" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#10b981" />
+                      <stop offset="100%" stopColor="#059669" />
+                    </linearGradient>
+                    <linearGradient id="unpaidGradient" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#ef4444" />
+                      <stop offset="100%" stopColor="#dc2626" />
+                    </linearGradient>
+                  </defs>
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden hover:scale-[1.02] transition-all duration-300 ease-out hover:shadow-2xl">
+            <CardHeader className="bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 border-b border-gray-200 px-6 py-6">
+              <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                <CreditCard className="h-6 w-6 text-purple-600" />
+                Maintenance Management Bills
+              </CardTitle>
+              <p className="text-sm text-gray-600 mt-1">Payment status distribution</p>
+            </CardHeader>
+            <CardContent className="p-6">
+              <ResponsiveContainer width="100%" height={320}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      {
+                        name: "Paid",
+                        value: maintenanceBills.filter((bill) => bill.status === "paid").length,
+                        fill: "url(#maintenancePaidGradient)"
+                      },
+                      {
+                        name: "Unpaid",
+                        value: maintenanceBills.filter((bill) => bill.status !== "paid").length,
+                        fill: "url(#maintenanceUnpaidGradient)"
+                      }
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={90}
+                    dataKey="value"
+                    label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                    labelLine={false}
+                  >
+                    <Cell fill="url(#maintenancePaidGradient)" />
+                    <Cell fill="url(#maintenanceUnpaidGradient)" />
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+                  <defs>
+                    <linearGradient id="maintenancePaidGradient" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#8b5cf6" />
+                      <stop offset="100%" stopColor="#7c3aed" />
+                    </linearGradient>
+                    <linearGradient id="maintenanceUnpaidGradient" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#f59e0b" />
+                      <stop offset="100%" stopColor="#d97706" />
+                    </linearGradient>
+                  </defs>
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+
+
+      </div>
     </div>
   )
 }

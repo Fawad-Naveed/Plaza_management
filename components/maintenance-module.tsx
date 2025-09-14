@@ -1777,12 +1777,12 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
 
   const renderInstalmentsTab = () => (
     <div className="space-y-6">
-      {/* Create Instalment Form */}
+      {/* Create Partial Payment Form */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Create Maintenance Instalment Plan
+            Create Maintenance Partial Payment Plan
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -1819,24 +1819,24 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="instalmentAmount">Instalment Amount (PKR )</Label>
+              <Label htmlFor="instalmentAmount">Partial Payment Amount (PKR )</Label>
               <Input
                 id="instalmentAmount"
                 type="text"
                 step="0.01"
                 value={newInstalment.instalmentAmount}
                 onChange={(e) => setNewInstalment({ ...newInstalment, instalmentAmount: e.target.value })}
-                placeholder="Enter instalment amount"
+                placeholder="Enter partial payment amount"
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Calculated Instalments</Label>
+              <Label>Calculated Partial Payments</Label>
               <div className="p-2 bg-gray-50 rounded">
                 {newInstalment.totalAmount && newInstalment.instalmentAmount
                   ? Math.ceil(parseFloat(newInstalment.totalAmount) / parseFloat(newInstalment.instalmentAmount))
                   : 0}{" "}
-                instalments
+                partial payments
               </div>
             </div>
           </div>
@@ -1847,26 +1847,26 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
               id="instalmentDescription"
               value={newInstalment.description}
               onChange={(e) => setNewInstalment({ ...newInstalment, description: e.target.value })}
-              placeholder="Describe the instalment plan"
+              placeholder="Describe the partial payment plan"
               rows={2}
             />
           </div>
 
           <Button onClick={handleCreateInstalment} className="bg-purple-600 text-white hover:bg-purple-700">
             <Calendar className="h-4 w-4 mr-2" />
-            Create Instalment Plan
+            Create Partial Payment Plan
           </Button>
         </CardContent>
       </Card>
 
-      {/* Instalments List */}
+      {/* Partial Payments List */}
       <Card>
         <CardHeader>
-          <CardTitle>Maintenance Instalments</CardTitle>
+          <CardTitle>Maintenance Partial Payments</CardTitle>
           <div className="flex items-center gap-2">
             <Search className="h-4 w-4 text-gray-500" />
             <Input
-              placeholder="Search instalments..."
+              placeholder="Search partial payments..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm"
@@ -1880,7 +1880,7 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
                 <TableHead>Customer</TableHead>
                 <TableHead>Shop</TableHead>
                 <TableHead>Total Amount</TableHead>
-                <TableHead>Instalment Amount</TableHead>
+                <TableHead>Partial Payment Amount</TableHead>
                 <TableHead>Progress</TableHead>
                 <TableHead>Next Due</TableHead>
                 <TableHead>Status</TableHead>

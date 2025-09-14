@@ -37,14 +37,16 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
       customerName: string
       previousReading: number
       currentReading: string
+      unitsConsumed: string
       consumption: number
       totalConsumption: number
-    }>,
+    }>
   })
 
   const [newReading, setNewReading] = useState({
     businessId: "",
     currentReading: "",
+    unitsConsumed: "",
     readingDate: new Date().toISOString().split("T")[0],
     rate: "8.5",
   })
@@ -114,6 +116,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
           customerName: business.name,
           previousReading: previousMeterReading, // Use latest meter reading as previous
           currentReading: "",
+          unitsConsumed: "",
           consumption: 0,
           totalConsumption: totalConsumption, // Store total consumption separately
         }
@@ -140,25 +143,24 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
     return consumption * rate
   }
 
-  const updateReadingSheet = (index: number, currentReading: string) => {
+  const updateReadingSheet = (index: number, field: string, value: string) => {
     const updatedReadings = [...readingSheet.readings]
-    const current = Number.parseFloat(currentReading) || 0
-    const previous = updatedReadings[index].previousReading
     updatedReadings[index] = {
       ...updatedReadings[index],
-      currentReading,
-      consumption: calculateConsumption(previous, current),
+      [field]: value,
+      // Update consumption only when unitsConsumed changes
+      consumption: field === 'unitsConsumed' ? (Number.parseFloat(value) || 0) : updatedReadings[index].consumption,
     }
     setReadingSheet({ ...readingSheet, readings: updatedReadings })
   }
 
   const saveReadingSheet = async () => {
     try {
-      const validReadings = readingSheet.readings.filter((reading) => reading.currentReading !== "")
+      const validReadings = readingSheet.readings.filter((reading) => reading.currentReading !== "" && reading.unitsConsumed !== "")
 
       for (const reading of validReadings) {
         const current = Number.parseFloat(reading.currentReading)
-        const consumption = calculateConsumption(reading.previousReading, current)
+        const consumption = Number.parseFloat(reading.unitsConsumed) || 0  // Use manual input
         const rate = 8.5
         const amount = calculateAmount(consumption, rate)
 
@@ -183,6 +185,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
           ...reading,
           previousReading: Number.parseFloat(reading.currentReading) || reading.previousReading,
           currentReading: "",
+          unitsConsumed: "",
           consumption: 0,
         })),
       })
@@ -204,7 +207,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
         const previousReading = businessReadings.length > 0 ? businessReadings[0].current_reading : 0
         
         const current = Number.parseFloat(newReading.currentReading)
-        const consumption = calculateConsumption(previousReading, current)
+        const consumption = Number.parseFloat(newReading.unitsConsumed) || 0  // Use manual input
         const rate = Number.parseFloat(newReading.rate)
         const amount = calculateAmount(consumption, rate)
 
@@ -226,6 +229,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
         setNewReading({
           businessId: "",
           currentReading: "",
+          unitsConsumed: "",
           readingDate: new Date().toISOString().split("T")[0],
           rate: "8.5",
         })
@@ -408,7 +412,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
                   <TableHead className="font-semibold text-gray-900 py-4">Customer Name</TableHead>
                   <TableHead className="font-semibold text-gray-900 py-4">Total Consumption</TableHead>
                   <TableHead className="font-semibold text-gray-900 py-4">Current Reading</TableHead>
-                  <TableHead className="font-semibold text-gray-900 py-4">Monthly Consumption</TableHead>
+                  <TableHead className="font-semibold text-gray-900 py-4">Units Consumed</TableHead>
                   <TableHead className="font-semibold text-gray-900 py-4">Amount</TableHead>
                   <TableHead className="font-semibold text-gray-900 py-4 text-center">Actions</TableHead>
                 </TableRow>
@@ -448,21 +452,19 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
                       <Input
                         type="number"
                         value={reading.currentReading}
-                        onChange={(e) => updateReadingSheet(index, e.target.value)}
+                        onChange={(e) => updateReadingSheet(index, 'currentReading', e.target.value)}
                         placeholder="Enter reading"
                         className="w-36 h-11 text-center font-medium border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                       />
                     </TableCell>
                     <TableCell className="py-4">
-                      <div className="flex items-center gap-3 p-2 bg-yellow-50 rounded-lg w-fit">
-                        <div className="p-1 bg-yellow-500 rounded">
-                          <Zap className="h-3 w-3 text-white" />
-                        </div>
-                        <div>
-                          <div className="text-lg font-bold text-yellow-700">{reading.consumption}</div>
-                          <div className="text-xs text-yellow-600">units this month</div>
-                        </div>
-                      </div>
+                      <Input
+                        type="number"
+                        value={reading.unitsConsumed}
+                        onChange={(e) => updateReadingSheet(index, 'unitsConsumed', e.target.value)}
+                        placeholder="Enter units"
+                        className="w-36 h-11 text-center font-medium border-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200"
+                      />
                     </TableCell>
                     <TableCell className="py-4">
                       <div className="flex items-center gap-3 p-2 bg-green-50 rounded-lg w-fit">
@@ -562,7 +564,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
     
     const previousReading = getPreviousReading()
     const currentReading = Number.parseFloat(newReading.currentReading) || 0
-    const consumption = calculateConsumption(previousReading, currentReading)
+    const consumption = Number.parseFloat(newReading.unitsConsumed) || 0  // Use manual input
     
     return (
       <div className="space-y-6">
@@ -611,6 +613,17 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
                   value={newReading.currentReading}
                   onChange={(e) => setNewReading({ ...newReading, currentReading: e.target.value })}
                   placeholder="Enter current meter reading"
+                  className="h-11 text-center font-medium border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="unitsConsumed" className="text-sm font-semibold text-gray-700">Units Consumed *</Label>
+                <Input
+                  id="unitsConsumed"
+                  type="number"
+                  value={newReading.unitsConsumed}
+                  onChange={(e) => setNewReading({ ...newReading, unitsConsumed: e.target.value })}
+                  placeholder="Enter units consumed"
                   className="h-11 text-center font-medium border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200"
                 />
               </div>
@@ -678,7 +691,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
             <div className="flex gap-4">
               <Button 
                 onClick={addIndividualReading} 
-                disabled={!newReading.businessId || !newReading.currentReading || !newReading.readingDate}
+                disabled={!newReading.businessId || !newReading.currentReading || !newReading.unitsConsumed || !newReading.readingDate}
                 size="lg"
                 className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 px-8 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -691,6 +704,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
                 onClick={() => setNewReading({
                   businessId: "",
                   currentReading: "",
+                  unitsConsumed: "",
                   readingDate: new Date().toISOString().split("T")[0],
                   rate: "8.5",
                 })}

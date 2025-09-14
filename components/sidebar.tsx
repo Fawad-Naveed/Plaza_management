@@ -21,7 +21,7 @@ export function Sidebar({
   collapsed,
   onToggleCollapse,
 }: SidebarProps) {
-  const [expandedSections, setExpandedSections] = useState<string[]>(["customer", "rent-billing"])
+  const [expandedSections, setExpandedSections] = useState<string[]>(["customer"])
   const [businessInfo, setBusinessInfo] = useState<Information | null>(null)
 
   useEffect(() => {
@@ -37,9 +37,14 @@ export function Sidebar({
   }, [])
 
   const toggleSection = (sectionId: string) => {
-    setExpandedSections((prev) =>
-      prev.includes(sectionId) ? prev.filter((id) => id !== sectionId) : [...prev, sectionId],
-    )
+    setExpandedSections((prev) => {
+      // If the clicked section is already expanded, collapse it
+      if (prev.includes(sectionId)) {
+        return prev.filter((id) => id !== sectionId)
+      }
+      // Otherwise, close all other sections and expand only this one
+      return [sectionId]
+    })
   }
 
   const isActive = (itemId: string) => {
@@ -48,32 +53,32 @@ export function Sidebar({
 
   return (
     <div
-      className={`fixed left-0 top-0 h-full bg-black text-white transition-all duration-300 z-50 flex flex-col overflow-hidden ${
+      className={`fixed left-0 top-0 h-full bg-gray-900 text-white transition-all duration-300 z-50 flex flex-col overflow-hidden shadow-xl ${
         collapsed ? "w-16" : "w-64"
       } max-h-screen`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-800">
-        {!collapsed && <h1 className="text-lg font-semibold">Plaza Management</h1>}
-        <Button variant="ghost" size="sm" onClick={onToggleCollapse} className="text-white hover:bg-gray-800">
+      <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800">
+        {!collapsed && <h1 className="text-xl font-bold tracking-wide">Plaza Management</h1>}
+        <Button variant="ghost" size="sm" onClick={onToggleCollapse} className="text-gray-300 hover:text-white hover:bg-gray-700 rounded-md">
           {collapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
         </Button>
       </div>
 
       {/* Navigation */}
-      <nav className="p-2 flex-1 overflow-y-auto pr-1 scroll-smooth pb-4 min-h-0" style={{
+      <nav className="p-3 flex-1 overflow-y-auto pr-1 scroll-smooth pb-4 min-h-0" style={{
         scrollbarWidth: 'thin',
         scrollbarColor: '#4B5563 #1F2937'
       }}>
         {navigationItems.map((item) => (
-          <div key={item.id} className="mb-1">
+          <div key={item.id} className="mb-2">
             {item.subItems ? (
               <>
                 <Button
                   variant="ghost"
-                  className={`w-full justify-start text-left hover:bg-gray-800 ${
-                    isActive(item.id) ? "bg-gray-800" : ""
-                  } ${collapsed ? "px-2" : "px-3"}`}
+                  className={`w-full justify-start text-left hover:bg-gray-700 hover:text-white hover:scale-105 transition-all duration-200 rounded-lg ${
+                    isActive(item.id) ? "bg-gray-700 text-white" : "text-gray-300"
+                  } ${collapsed ? "px-2 py-3" : "px-3 py-2"}`}
                   onClick={() => !collapsed && toggleSection(item.id)}
                 >
                   {collapsed ? (
@@ -92,14 +97,14 @@ export function Sidebar({
                   )}
                 </Button>
                 {!collapsed && expandedSections.includes(item.id) && (
-                  <div className="ml-4 mt-1 space-y-1">
+                  <div className="ml-6 mt-2 space-y-1 border-l border-gray-600 pl-3">
                     {item.subItems.map((subItem) => (
                       <Button
                         key={subItem.id}
                         variant="ghost"
-                        className={`w-full justify-start text-left text-sm hover:bg-gray-800 ${
-                          activeSection === subItem.id ? "bg-gray-700" : ""
-                        }`}
+                        className={`w-full justify-start text-left text-sm hover:bg-gray-700 hover:text-white hover:scale-105 transition-all duration-200 rounded-md ${
+                          activeSection === subItem.id ? "bg-gray-600 text-white" : "text-gray-400"
+                        } py-1.5`}
                         onClick={() => onSectionChange(subItem.id)}
                       >
                         {subItem.label}
@@ -111,9 +116,9 @@ export function Sidebar({
             ) : (
               <Button
                 variant="ghost"
-                className={`w-full justify-start text-left hover:bg-gray-800 ${
-                  activeSection === item.id ? "bg-gray-800" : ""
-                } ${collapsed ? "px-2" : "px-3"}`}
+                className={`w-full justify-start text-left hover:bg-gray-700 hover:text-white hover:scale-105 transition-all duration-200 rounded-lg ${
+                  activeSection === item.id ? "bg-gray-700 text-white" : "text-gray-300"
+                } ${collapsed ? "px-2 py-3" : "px-3 py-2"}`}
                 onClick={() => onSectionChange(item.id)}
               >
                 {collapsed ? (
@@ -131,26 +136,26 @@ export function Sidebar({
 
       {/* Business Branding */}
       {businessInfo && (
-        <div className="border-t border-gray-800 p-4 mt-auto flex-shrink-0">
+        <div className="border-t border-gray-700 p-4 mt-auto flex-shrink-0 bg-gray-800">
           {!collapsed ? (
             <div className="flex items-center space-x-3">
               {businessInfo.logo_url ? (
                 <img
                   src={businessInfo.logo_url}
                   alt={businessInfo.business_name}
-                  className="w-8 h-8 rounded object-cover"
+                  className="w-9 h-9 rounded-lg object-cover border border-gray-600"
                 />
               ) : (
-                <div className="w-8 h-8 bg-gray-700 rounded flex items-center justify-center">
-                  <Building className="h-4 w-4 text-gray-400" />
+                <div className="w-9 h-9 bg-gray-600 rounded-lg flex items-center justify-center border border-gray-500">
+                  <Building className="h-5 w-5 text-gray-300" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">
+                <p className="text-sm font-semibold text-white truncate">
                   {businessInfo.business_name}
                 </p>
                 {businessInfo.contact_email && (
-                  <p className="text-xs text-gray-400 truncate">
+                  <p className="text-xs text-gray-300 truncate">
                     {businessInfo.contact_email}
                   </p>
                 )}
@@ -162,11 +167,11 @@ export function Sidebar({
                 <img
                   src={businessInfo.logo_url}
                   alt={businessInfo.business_name}
-                  className="w-8 h-8 rounded object-cover"
+                  className="w-9 h-9 rounded-lg object-cover border border-gray-600"
                 />
               ) : (
-                <div className="w-8 h-8 bg-gray-700 rounded flex items-center justify-center">
-                  <Building className="h-4 w-4 text-gray-400" />
+                <div className="w-9 h-9 bg-gray-600 rounded-lg flex items-center justify-center border border-gray-500">
+                  <Building className="h-5 w-5 text-gray-300" />
                 </div>
               )}
             </div>

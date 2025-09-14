@@ -68,7 +68,7 @@ export const navigationItems: NavigationItem[] = [
       { id: "customer-view", label: "View Businesses" },
       { id: "customer-floors", label: "Floor Management" },
       { id: "customer-advance", label: "Advances" },
-      { id: "customer-instalments", label: "Instalments" },
+      { id: "customer-instalments", label: "Partial Payments" },
       { id: "customer-theft", label: "Theft Records" },
       { id: "customer-meter-load", label: "Meter Load" },
     ],
@@ -105,7 +105,7 @@ export const navigationItems: NavigationItem[] = [
       { id: "maintenance-unpaid", label: "Unpaid Bills" },
       { id: "maintenance-paid", label: "Paid Bills" },
       // { id: "maintenance-advance", label: "Advances" },
-      // { id: "maintenance-instalments", label: "Instalments" },
+      // { id: "maintenance-instalments", label: "Partial Payments" },
     ],
   },
   {
@@ -119,7 +119,7 @@ export const navigationItems: NavigationItem[] = [
     ],
   },
   // { id: "terms-conditions", label: "Terms & Conditions" },
-  { id: "tc", label: "T&C" },
+  { id: "tc", label: "Term and Condition" },
   { id: "settings", label: "Settings" },
 ]
 
@@ -158,7 +158,7 @@ export function PlazaManagementApp() {
         return <PaymentManagement activeSubSection={activeSection} />
       case "maintenance-bill":
       // case "maintenance-advance":
-      // case "maintenance-instalments":
+      // case "maintenance-instalments": // Now Partial Payments
       case "maintenance-unpaid":
       case "maintenance-paid":
         return <MaintenanceModule activeSubSection={activeSection} />
