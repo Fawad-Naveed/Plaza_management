@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
+import { useBreakpoint } from "@/hooks/use-mobile"
 import {
   Search,
   Edit,
@@ -27,6 +28,7 @@ import {
   Save,
 } from "lucide-react"
 import { clientDb, type Business, type ContactPerson, type Floor, type Advance, type PartialPayment, deleteAdvance, deleteFloor, checkAdvanceExists, createPartialPayment, updatePartialPayment, deletePartialPayment, checkPartialPaymentExists } from "@/lib/database"
+import { hashPassword, isUsernameAvailable } from "@/lib/auth"
 
 interface TheftRecord {
   id: string
@@ -121,6 +123,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
   const [contactPersons, setContactPersons] = useState<ContactPerson[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { isMobile, isTablet } = useBreakpoint()
 
   const [theftRecords, setTheftRecords] = useState<TheftRecord[]>([])
 
@@ -145,6 +148,8 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
     gas_management: true,
     rent_management: true,
     maintenance_management: true,
+    username: "",
+    password: "",
     contactPersons: [
       {
         name: "",
@@ -245,6 +250,17 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
         if (value && (isNaN(Number(value)) || Number(value) < 0)) return 'Please enter a valid rent amount'
         return ''
         
+      case 'username':
+        if (!value || !value.toString().trim()) return 'Username is required for business login'
+        if (value.toString().trim().length < 3) return 'Username must be at least 3 characters'
+        if (!/^[a-zA-Z0-9_]+$/.test(value.toString())) return 'Username can only contain letters, numbers, and underscores'
+        return ''
+        
+      case 'password':
+        if (!value || !value.toString().trim()) return 'Password is required for business login'
+        if (value.toString().length < 6) return 'Password must be at least 6 characters'
+        return ''
+        
       default:
         return ''
     }
@@ -254,7 +270,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
   const validateForm = React.useCallback(() => {
     console.log('🔍 Validating form with data:', newBusiness)
     
-    const requiredFields = ['name', 'contact_person', 'phone', 'floor_number', 'shop_number']
+    const requiredFields = ['name', 'contact_person', 'phone', 'floor_number', 'shop_number', 'username', 'password']
     const errors: Record<string, string> = {}
     
     requiredFields.forEach(field => {
@@ -419,7 +435,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
       console.log('❌ Validation failed:', fieldErrors)
       
       // Mark all required fields as touched to show errors
-      const requiredFields = ['name', 'contact_person', 'phone', 'floor_number', 'shop_number']
+      const requiredFields = ['name', 'contact_person', 'phone', 'floor_number', 'shop_number', 'username', 'password']
       const touchedState: Record<string, boolean> = {}
       requiredFields.forEach(field => {
         touchedState[field] = true
@@ -438,8 +454,20 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
       return
     }
     
-    if (newBusiness.name && newBusiness.phone && newBusiness.shop_number && newBusiness.floor_number) {
+    if (newBusiness.name && newBusiness.phone && newBusiness.shop_number && newBusiness.floor_number && newBusiness.username && newBusiness.password) {
       try {
+        // Check if username is available
+        const usernameAvailable = await isUsernameAvailable(newBusiness.username)
+        if (!usernameAvailable) {
+          setError('Username already exists. Please choose a different username.')
+          setFieldErrors(prev => ({ ...prev, username: 'Username already exists' }))
+          setTouchedFields(prev => ({ ...prev, username: true }))
+          return
+        }
+        
+        // Hash password
+        const hashedPassword = await hashPassword(newBusiness.password)
+        
         const businessData = {
           name: newBusiness.name,
           type: newBusiness.type || "General",
@@ -460,6 +488,8 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
           gas_management: newBusiness.gas_management,
           rent_management: newBusiness.rent_management,
           maintenance_management: newBusiness.maintenance_management,
+          username: newBusiness.username,
+          password_hash: hashedPassword,
           status: "active" as const,
         }
 
@@ -502,6 +532,8 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
           gas_management: true,
           rent_management: true,
           maintenance_management: true,
+          username: "",
+          password: "",
           contactPersons: [{ name: "", phone: "", designation: "" }],
         })
         
@@ -989,6 +1021,53 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
           </div>
         </div>
 
+        {/* Login Credentials Section */}
+        <div className="space-y-4">
+          <h3 className="text-md font-semibold text-gray-800">Business Login Credentials</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username <span className="text-red-500">*</span></Label>
+              <Input
+                id="username"
+                value={newBusiness.username}
+                onChange={(e) => handleFieldChange('username', e.target.value)}
+                onBlur={(e) => handleFieldBlur('username', e.target.value)}
+                placeholder="Enter username for business login"
+                className={`${
+                  fieldErrors.username && touchedFields.username 
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                    : ''
+                }`}
+              />
+              {fieldErrors.username && touchedFields.username && (
+                <p className="text-red-500 text-xs mt-1">{fieldErrors.username}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password <span className="text-red-500">*</span></Label>
+              <Input
+                id="password"
+                type="password"
+                value={newBusiness.password}
+                onChange={(e) => handleFieldChange('password', e.target.value)}
+                onBlur={(e) => handleFieldBlur('password', e.target.value)}
+                placeholder="Enter password for business login"
+                className={`${
+                  fieldErrors.password && touchedFields.password 
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                    : ''
+                }`}
+              />
+              {fieldErrors.password && touchedFields.password && (
+                <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">
+            These credentials will allow the business to log in and view their own data.
+          </p>
+        </div>
+
         <div className="space-y-4">
           <h3 className="text-md font-semibold text-gray-800">Management Types</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1101,21 +1180,40 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
 
   const renderViewBusiness = () => (
     <Card className="border-gray-200">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold flex items-center justify-between">
-          All Businesses
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-gray-500" />
-            <Input
-              placeholder="Search businesses..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-64"
-            />
+      <CardHeader className={isMobile ? "pb-3" : ""}>
+        <div className={`flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'}`}>
+          <CardTitle className={`font-semibold ${isMobile ? 'text-xl text-center' : 'text-lg'}`}>
+            All Businesses
+          </CardTitle>
+          
+          {/* Mobile-responsive search and filter section */}
+          <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-center gap-2'}`}>
+            {/* Search Input */}
+            <div className={`relative flex items-center ${isMobile ? 'w-full' : 'w-64'}`}>
+              <Search className={`absolute left-3 text-gray-500 ${isMobile ? 'h-5 w-5' : 'h-4 w-4'}`} />
+              <Input
+                placeholder={isMobile ? "Search by name, phone, or shop..." : "Search businesses..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`${isMobile ? 'pl-10 h-12 text-base' : 'pl-9 w-full'} bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500`}
+              />
+              {/* Clear search button on mobile */}
+              {isMobile && searchTerm && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 h-8 w-8 p-0 hover:bg-gray-100"
+                >
+                  <X className="h-4 w-4 text-gray-500" />
+                </Button>
+              )}
+            </div>
             
+            {/* Floor Filter */}
             <Select value={floorFilter} onValueChange={handleFloorFilterChange}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Filter by floor" />
+              <SelectTrigger className={`${isMobile ? 'w-full h-12 text-base' : 'w-40'} bg-white border-gray-300`}>
+                <SelectValue placeholder={isMobile ? "All Floors" : "Filter by floor"} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Floors</SelectItem>
@@ -1126,95 +1224,284 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
                 ))}
               </SelectContent>
             </Select>
+            
+            {/* Results count on mobile */}
+            {isMobile && (
+              <div className="text-sm text-gray-600 text-center">
+                {filteredBusinesses.length} of {businesses.length} businesses
+                {searchTerm && ` matching "${searchTerm}"`}
+              </div>
+            )}
           </div>
-        </CardTitle>
+        </div>
       </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Business Name</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Shop</TableHead>
-              <TableHead>Floor</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredBusinesses.map((business) => (
-              <React.Fragment key={business.id}>
-                <TableRow
-                  className="cursor-pointer hover:bg-gray-50"
-                  onClick={() => toggleBusinessExpansion(business.id)}
+      <CardContent className={isMobile ? "p-4" : ""}>
+        {isMobile ? (
+          /* Mobile Card Layout */
+          <div className="space-y-4">
+            {filteredBusinesses.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                {searchTerm || floorFilter !== "all" 
+                  ? "No businesses match your search criteria"
+                  : "No businesses found"}
+              </div>
+            ) : (
+              filteredBusinesses.map((business) => (
+                <div
+                  key={business.id}
+                  className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <TableCell className="font-medium">{business.name}</TableCell>
-                  <TableCell>{business.phone}</TableCell>
-                  <TableCell>{business.shop_number}</TableCell>
-                  <TableCell>{getFloorName(business.floor_number)}</TableCell>
-                  <TableCell>
-                    <Badge variant={business.status === "active" ? "default" : "secondary"}>{business.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      {expandedBusinesses.includes(business.id) ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setEditingBusiness(business)
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Edit Business</DialogTitle>
-                          </DialogHeader>
-                          {editingBusiness && (
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <Label>Business Name</Label>
-                                <Input
-                                  value={editingBusiness.name}
-                                  onChange={(e) => setEditingBusiness({ ...editingBusiness, name: e.target.value })}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Contact</Label>
-                                <Input
-                                  value={editingBusiness.phone}
-                                  onChange={(e) => setEditingBusiness({ ...editingBusiness, phone: e.target.value })}
-                                />
-                              </div>
-                              <Button onClick={() => updateBusiness(editingBusiness)}>Update Business</Button>
-                            </div>
-                          )}
-                        </DialogContent>
-                      </Dialog>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          deleteBusiness(business.id)
-                        }}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                  {/* Business Card Header */}
+                  <div 
+                    className="flex items-center justify-between cursor-pointer"
+                    onClick={() => toggleBusinessExpansion(business.id)}
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-lg text-gray-900">{business.name}</h3>
+                      <div className="flex items-center gap-3 mt-1 text-sm text-gray-600">
+                        <span>{business.phone}</span>
+                        <span>•</span>
+                        <span>Shop {business.shop_number}</span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-2">
+                        <Badge variant={business.status === "active" ? "default" : "secondary"}>
+                          {business.status}
+                        </Badge>
+                        <span className="text-sm text-gray-500">{getFloorName(business.floor_number)}</span>
+                      </div>
                     </div>
-                  </TableCell>
-                </TableRow>
-                {expandedBusinesses.includes(business.id) && (
+                    <div className="flex items-center gap-2">
+                      {expandedBusinesses.includes(business.id) ? (
+                        <ChevronUp className="h-5 w-5 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-gray-400" />
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Business Card Actions */}
+                  <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setEditingBusiness(business)
+                          }}
+                          className="flex-1 h-10"
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="mx-4">
+                        <DialogHeader>
+                          <DialogTitle>Edit Business</DialogTitle>
+                        </DialogHeader>
+                        {editingBusiness && (
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label>Business Name</Label>
+                              <Input
+                                value={editingBusiness.name}
+                                onChange={(e) => setEditingBusiness({ ...editingBusiness, name: e.target.value })}
+                                className="h-12 text-base"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Contact</Label>
+                              <Input
+                                value={editingBusiness.phone}
+                                onChange={(e) => setEditingBusiness({ ...editingBusiness, phone: e.target.value })}
+                                className="h-12 text-base"
+                              />
+                            </div>
+                            <Button 
+                              onClick={() => updateBusiness(editingBusiness)}
+                              className="w-full h-12"
+                            >
+                              Update Business
+                            </Button>
+                          </div>
+                        )}
+                      </DialogContent>
+                    </Dialog>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteBusiness(business.id)
+                      }}
+                      className="h-10 px-4 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {/* Expanded Business Details */}
+                  {expandedBusinesses.includes(business.id) && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 space-y-4">
+                      {/* Business Details Section */}
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base">Business Details</h4>
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                              <div className="text-xs text-gray-500 mb-1">Monthly Rent</div>
+                              <div className="text-green-600 font-semibold">PKR {business.rent_amount.toLocaleString()}</div>
+                            </div>
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                              <div className="text-xs text-gray-500 mb-1">Security Deposit</div>
+                              <div className="text-blue-600 font-semibold">PKR {business.security_deposit.toLocaleString()}</div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">Lease Start</div>
+                              <div className="text-sm font-medium">{new Date(business.lease_start_date).toLocaleDateString()}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">Lease End</div>
+                              <div className="text-sm font-medium">{new Date(business.lease_end_date).toLocaleDateString()}</div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3">
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">Business Type</div>
+                              <div className="text-sm font-medium">{business.type}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">Area</div>
+                              <div className="text-sm font-medium">{business.area_sqft} sq ft</div>
+                            </div>
+                            {business.email && (
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">Email</div>
+                                <div className="text-sm font-medium">{business.email}</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Contact Persons Section */}
+                      {getBusinessContactPersons(business.id).length > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="font-semibold text-base">
+                            Contact Persons ({getBusinessContactPersons(business.id).length})
+                          </h4>
+                          <div className="space-y-2">
+                            {getBusinessContactPersons(business.id).map((person, index) => (
+                              <div key={person.id} className="bg-gray-50 p-3 rounded-lg">
+                                <div className="text-xs text-gray-500 mb-2">Contact Person {index + 1}</div>
+                                <div className="space-y-1">
+                                  <div className="text-sm"><span className="font-medium">Name:</span> {person.name}</div>
+                                  <div className="text-sm"><span className="font-medium">Phone:</span> {person.phone}</div>
+                                  {person.designation && (
+                                    <div className="text-sm"><span className="font-medium">Designation:</span> {person.designation}</div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        ) : (
+          /* Desktop Table Layout */
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Business Name</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead>Shop</TableHead>
+                <TableHead>Floor</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredBusinesses.map((business) => (
+                <React.Fragment key={business.id}>
+                  <TableRow
+                    className="cursor-pointer hover:bg-gray-50"
+                    onClick={() => toggleBusinessExpansion(business.id)}
+                  >
+                    <TableCell className="font-medium">{business.name}</TableCell>
+                    <TableCell>{business.phone}</TableCell>
+                    <TableCell>{business.shop_number}</TableCell>
+                    <TableCell>{getFloorName(business.floor_number)}</TableCell>
+                    <TableCell>
+                      <Badge variant={business.status === "active" ? "default" : "secondary"}>{business.status}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        {expandedBusinesses.includes(business.id) ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setEditingBusiness(business)
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Edit Business</DialogTitle>
+                            </DialogHeader>
+                            {editingBusiness && (
+                              <div className="space-y-4">
+                                <div className="space-y-2">
+                                  <Label>Business Name</Label>
+                                  <Input
+                                    value={editingBusiness.name}
+                                    onChange={(e) => setEditingBusiness({ ...editingBusiness, name: e.target.value })}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Contact</Label>
+                                  <Input
+                                    value={editingBusiness.phone}
+                                    onChange={(e) => setEditingBusiness({ ...editingBusiness, phone: e.target.value })}
+                                  />
+                                </div>
+                                <Button onClick={() => updateBusiness(editingBusiness)}>Update Business</Button>
+                              </div>
+                            )}
+                          </DialogContent>
+                        </Dialog>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteBusiness(business.id)
+                          }}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {expandedBusinesses.includes(business.id) && (
                   <TableRow>
                     <TableCell colSpan={6} className="bg-gray-50">
                       <div className="p-4 space-y-4">
@@ -1447,16 +1734,25 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
                     </TableCell>
                   </TableRow>
                 )}
-              </React.Fragment>
-            ))}
-          </TableBody>
-        </Table>
+                </React.Fragment>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        
+        {/* No results message for both mobile and desktop */}
         {filteredBusinesses.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            <p>No businesses found.</p>
-            {businesses.length === 0 && (
-              <p className="text-sm">Add your first business using the "Add Business" section.</p>
-            )}
+          <div className={`text-center py-8 text-gray-500 ${isMobile ? 'px-4' : ''}`}>
+            <p className={isMobile ? 'text-base' : ''}>No businesses found.</p>
+            {searchTerm || floorFilter !== "all" ? (
+              <p className={`text-sm mt-2 ${isMobile ? 'text-sm' : ''}`}>
+                Try adjusting your search criteria or filters.
+              </p>
+            ) : businesses.length === 0 ? (
+              <p className={`text-sm mt-2 ${isMobile ? 'text-sm' : ''}`}>
+                Add your first business using the "Add Business" section.
+              </p>
+            ) : null}
           </div>
         )}
       </CardContent>

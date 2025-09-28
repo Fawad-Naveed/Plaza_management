@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { useBreakpoint } from "@/hooks/use-mobile"
 import dynamic from "next/dynamic"
 const ResponsiveContainer = dynamic(() => import("recharts").then(m => m.ResponsiveContainer), { ssr: false })
 const BarChart = dynamic(() => import("recharts").then(m => m.BarChart), { ssr: false })
@@ -31,6 +32,7 @@ export function Dashboard() {
   const [advances, setAdvances] = useState<Advance[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { isMobile, isTablet } = useBreakpoint()
 
 
   const [showAddFloorDialog, setShowAddFloorDialog] = useState(false)
@@ -178,12 +180,16 @@ export function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 ${isMobile ? 'p-4' : 'p-6'}`}>
+      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
-            <p className="text-lg text-gray-600 mt-2">Plaza Management Overview</p>
+            <h1 className={`font-bold text-gray-900 tracking-tight ${
+              isMobile ? 'text-2xl' : isTablet ? 'text-3xl' : 'text-4xl'
+            }`}>Dashboard</h1>
+            <p className={`text-gray-600 mt-2 ${
+              isMobile ? 'text-sm' : 'text-lg'
+            }`}>Plaza Management Overview</p>
           </div>
         </div>
 
@@ -191,145 +197,260 @@ export function Dashboard() {
       <RevenueInsights />
 
         {/* Floor Details Section */}
-        <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden hover:scale-[1.02] transition-all duration-300 ease-out hover:shadow-2xl">
-          <CardHeader className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 border-b border-gray-200 px-6 py-6">
-            <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
-              <Building className="h-6 w-6 text-blue-600" />
+        <Card className={`bg-white shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
+          isMobile ? 'hover:shadow-xl' : 'hover:scale-[1.02] hover:shadow-2xl'
+        }`}>
+          <CardHeader className={`bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 border-b border-gray-200 ${
+            isMobile ? 'px-4 py-4' : 'px-6 py-6'
+          }`}>
+            <CardTitle className={`font-bold text-gray-900 flex items-center gap-3 ${
+              isMobile ? 'text-lg' : 'text-xl'
+            }`}>
+              <Building className={`text-blue-600 ${
+                isMobile ? 'h-5 w-5' : 'h-6 w-6'
+              }`} />
               Floor Details
             </CardTitle>
-            <p className="text-sm text-gray-600 mt-1">Overview of all floors and occupancy</p>
+            <p className={`text-gray-600 mt-1 ${
+              isMobile ? 'text-xs' : 'text-sm'
+            }`}>Overview of all floors and occupancy</p>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Floor</th>
-                    <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Total Shops</th>
-                    <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Occupied</th>
-                    <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Electricity Users</th>
-                    <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Occupancy Rate</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {floorData.map((floor, index) => (
-                    <tr key={floor.floor} className={`hover:bg-blue-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                      <td className="py-4 px-6 font-semibold text-gray-900">{floor.floor}</td>
-                      <td className="py-4 px-6 text-gray-700">{floor.total}</td>
-                      <td className="py-4 px-6">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          {floor.occupied}
+            {isMobile ? (
+              // Mobile card layout
+              <div className="space-y-4 p-4">
+                {floorData.map((floor, index) => (
+                  <div key={floor.floor} className="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-gray-900 text-base">{floor.floor}</h3>
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        {floor.occupied}/{floor.total}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-600">Total Shops</span>
+                        <p className="font-semibold text-gray-900">{floor.total}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-600">Electricity</span>
+                        <div className="flex items-center gap-1">
+                          <Zap className="h-3 w-3 text-yellow-500" />
+                          <span className="font-semibold text-gray-900">{floor.electricityUsers}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-600">Occupancy Rate</span>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%
                         </span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-2">
-                          <Zap className="h-4 w-4 text-yellow-500" />
-                          <span className="text-gray-700">{floor.electricityUsers}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2 min-w-[60px]">
-                            <div 
-                              className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300" 
-                              style={{ width: `${floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-semibold text-gray-900 min-w-[3rem]">
-                            {floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%
-                          </span>
-                        </div>
-                      </td>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {floors.length === 0 && (
+                  <div className="text-center py-8">
+                    <Building className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-base font-medium text-gray-600">No floors configured yet</p>
+                    <p className="text-xs text-gray-500 mt-1">Floors will appear here once they are added</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              // Desktop table layout
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Floor</th>
+                      <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Total Shops</th>
+                      <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Occupied</th>
+                      <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Electricity Users</th>
+                      <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Occupancy Rate</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              {floors.length === 0 && (
-                <div className="text-center py-12">
-                  <Building className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <p className="text-lg font-medium text-gray-600">No floors configured yet</p>
-                  <p className="text-sm text-gray-500 mt-1">Floors will appear here once they are added to your system</p>
-                </div>
-              )}
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {floorData.map((floor, index) => (
+                      <tr key={floor.floor} className={`hover:bg-blue-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                        <td className="py-4 px-6 font-semibold text-gray-900">{floor.floor}</td>
+                        <td className="py-4 px-6 text-gray-700">{floor.total}</td>
+                        <td className="py-4 px-6">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            {floor.occupied}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-2">
+                            <Zap className="h-4 w-4 text-yellow-500" />
+                            <span className="text-gray-700">{floor.electricityUsers}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2 min-w-[60px]">
+                              <div 
+                                className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300" 
+                                style={{ width: `${floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 min-w-[3rem]">
+                              {floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {floors.length === 0 && (
+                  <div className="text-center py-12">
+                    <Building className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg font-medium text-gray-600">No floors configured yet</p>
+                    <p className="text-sm text-gray-500 mt-1">Floors will appear here once they are added to your system</p>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-white shadow-lg border-0 rounded-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 ease-out overflow-hidden cursor-pointer">
-            <CardContent className="p-6">
+        <div className="mobile-grid gap-4 md:gap-6">
+          <Card className={`bg-white shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
+            isMobile ? 'hover:shadow-xl' : 'hover:shadow-2xl hover:scale-105'
+          }`}>
+            <CardContent className={isMobile ? "p-4" : "p-6"}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
-                    <Users className="h-6 w-6 text-white" />
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className={`bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl shadow-lg transition-transform duration-300 ${
+                    isMobile ? 'p-2' : 'p-3 group-hover:scale-110'
+                  }`}>
+                    <Users className={`text-white ${
+                      isMobile ? 'h-5 w-5' : 'h-6 w-6'
+                    }`} />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">Total Customers</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">{customerStats.total}</p>
+                    <p className={`font-medium text-gray-600 uppercase tracking-wide ${
+                      isMobile ? 'text-xs' : 'text-sm'
+                    }`}>Total Customers</p>
+                    <p className={`font-bold text-gray-900 mt-1 ${
+                      isMobile ? 'text-2xl' : 'text-3xl'
+                    }`}>{customerStats.total}</p>
                   </div>
                 </div>
-                <div className="h-12 w-1 bg-gradient-to-b from-slate-400 to-slate-600 rounded-full"></div>
+                {!isMobile && (
+                  <div className="h-12 w-1 bg-gradient-to-b from-slate-400 to-slate-600 rounded-full"></div>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white shadow-lg border-0 rounded-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 ease-out overflow-hidden cursor-pointer">
-            <CardContent className="p-6">
+          <Card className={`bg-white shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
+            isMobile ? 'hover:shadow-xl' : 'hover:shadow-2xl hover:scale-105'
+          }`}>
+            <CardContent className={isMobile ? "p-4" : "p-6"}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
-                    <UserCheck className="h-6 w-6 text-white" />
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className={`bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg transition-transform duration-300 ${
+                    isMobile ? 'p-2' : 'p-3 group-hover:scale-110'
+                  }`}>
+                    <UserCheck className={`text-white ${
+                      isMobile ? 'h-5 w-5' : 'h-6 w-6'
+                    }`} />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">Paid Customers</p>
-                    <p className="text-3xl font-bold text-green-600 mt-1">{customerStats.paid}</p>
+                    <p className={`font-medium text-gray-600 uppercase tracking-wide ${
+                      isMobile ? 'text-xs' : 'text-sm'
+                    }`}>Paid Customers</p>
+                    <p className={`font-bold text-green-600 mt-1 ${
+                      isMobile ? 'text-2xl' : 'text-3xl'
+                    }`}>{customerStats.paid}</p>
                   </div>
                 </div>
-                <div className="h-12 w-1 bg-gradient-to-b from-green-400 to-green-600 rounded-full"></div>
+                {!isMobile && (
+                  <div className="h-12 w-1 bg-gradient-to-b from-green-400 to-green-600 rounded-full"></div>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white shadow-lg border-0 rounded-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 ease-out overflow-hidden cursor-pointer">
-            <CardContent className="p-6">
+          <Card className={`bg-white shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
+            isMobile ? 'hover:shadow-xl' : 'hover:shadow-2xl hover:scale-105'
+          }`}>
+            <CardContent className={isMobile ? "p-4" : "p-6"}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
-                    <UserX className="h-6 w-6 text-white" />
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className={`bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg transition-transform duration-300 ${
+                    isMobile ? 'p-2' : 'p-3 group-hover:scale-110'
+                  }`}>
+                    <UserX className={`text-white ${
+                      isMobile ? 'h-5 w-5' : 'h-6 w-6'
+                    }`} />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">Unpaid Customers</p>
-                    <p className="text-3xl font-bold text-red-600 mt-1">{customerStats.unpaid}</p>
+                    <p className={`font-medium text-gray-600 uppercase tracking-wide ${
+                      isMobile ? 'text-xs' : 'text-sm'
+                    }`}>Unpaid Customers</p>
+                    <p className={`font-bold text-red-600 mt-1 ${
+                      isMobile ? 'text-2xl' : 'text-3xl'
+                    }`}>{customerStats.unpaid}</p>
                   </div>
                 </div>
-                <div className="h-12 w-1 bg-gradient-to-b from-red-400 to-red-600 rounded-full"></div>
+                {!isMobile && (
+                  <div className="h-12 w-1 bg-gradient-to-b from-red-400 to-red-600 rounded-full"></div>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Floor-wise Occupancy Chart */}
-        <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden hover:scale-[1.01] transition-all duration-300 ease-out hover:shadow-2xl">
-          <CardHeader className="bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border-b border-gray-200 px-6 py-6">
-            <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
-              <Building className="h-6 w-6 text-blue-600" />
+        <Card className={`bg-white shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
+          isMobile ? 'hover:shadow-xl' : 'hover:scale-[1.01] hover:shadow-2xl'
+        }`}>
+          <CardHeader className={`bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border-b border-gray-200 ${
+            isMobile ? 'px-4 py-4' : 'px-6 py-6'
+          }`}>
+            <CardTitle className={`font-bold text-gray-900 flex items-center gap-3 ${
+              isMobile ? 'text-lg' : 'text-xl'
+            }`}>
+              <Building className={`text-blue-600 ${
+                isMobile ? 'h-5 w-5' : 'h-6 w-6'
+              }`} />
               Floor-wise Occupancy Analysis
             </CardTitle>
-            <p className="text-sm text-gray-600 mt-1">Visual representation of shop occupancy across floors</p>
+            <p className={`text-gray-600 mt-1 ${
+              isMobile ? 'text-xs' : 'text-sm'
+            }`}>Visual representation of shop occupancy across floors</p>
           </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={floorData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+          <CardContent className={isMobile ? "p-4" : "p-6"}>
+            <ResponsiveContainer width="100%" height={isMobile ? 250 : 350}>
+              <BarChart 
+                data={floorData} 
+                margin={isMobile 
+                  ? { top: 10, right: 10, left: 10, bottom: 10 }
+                  : { top: 20, right: 30, left: 20, bottom: 20 }
+                }
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis 
                   dataKey="floor" 
-                  height={60} 
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
+                  height={isMobile ? 40 : 60}
+                  tick={{ fontSize: isMobile ? 10 : 12, fill: '#6b7280' }}
                   axisLine={{ stroke: '#d1d5db' }}
                 />
                 <YAxis 
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
+                  tick={{ fontSize: isMobile ? 10 : 12, fill: '#6b7280' }}
                   axisLine={{ stroke: '#d1d5db' }}
                 />
                 <Tooltip 
@@ -337,7 +458,8 @@ export function Dashboard() {
                     backgroundColor: '#ffffff',
                     border: '1px solid #e5e7eb',
                     borderRadius: '8px',
-                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                    fontSize: isMobile ? '12px' : '14px'
                   }}
                 />
                 <Bar dataKey="occupied" fill="url(#occupiedGradient)" name="Occupied" radius={[4, 4, 0, 0]} />
@@ -354,17 +476,29 @@ export function Dashboard() {
         </Card>
 
         {/* Bills Information */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden hover:scale-[1.02] transition-all duration-300 ease-out hover:shadow-2xl">
-            <CardHeader className="bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 border-b border-gray-200 px-6 py-6">
-              <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
-                <FileText className="h-6 w-6 text-green-600" />
+        <div className={`grid grid-cols-1 gap-4 md:gap-6 ${
+          isMobile ? '' : 'lg:grid-cols-2'
+        }`}>
+          <Card className={`bg-white shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
+            isMobile ? 'hover:shadow-xl' : 'hover:scale-[1.02] hover:shadow-2xl'
+          }`}>
+            <CardHeader className={`bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 border-b border-gray-200 ${
+              isMobile ? 'px-4 py-4' : 'px-6 py-6'
+            }`}>
+              <CardTitle className={`font-bold text-gray-900 flex items-center gap-3 ${
+                isMobile ? 'text-lg' : 'text-xl'
+              }`}>
+                <FileText className={`text-green-600 ${
+                  isMobile ? 'h-5 w-5' : 'h-6 w-6'
+                }`} />
                 Rent Management Bills
               </CardTitle>
-              <p className="text-sm text-gray-600 mt-1">Payment status distribution</p>
+              <p className={`text-gray-600 mt-1 ${
+                isMobile ? 'text-xs' : 'text-sm'
+              }`}>Payment status distribution</p>
             </CardHeader>
-            <CardContent className="p-6">
-              <ResponsiveContainer width="100%" height={320}>
+            <CardContent className={isMobile ? "p-4" : "p-6"}>
+              <ResponsiveContainer width="100%" height={isMobile ? 200 : 320}>
                 <PieChart>
                   <Pie
                     data={[
@@ -381,9 +515,9 @@ export function Dashboard() {
                     ]}
                     cx="50%"
                     cy="50%"
-                    outerRadius={90}
+                    outerRadius={isMobile ? 60 : 90}
                     dataKey="value"
-                    label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                    label={isMobile ? false : ({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
                     labelLine={false}
                   >
                     <Cell fill="url(#paidGradient)" />
@@ -394,9 +528,11 @@ export function Dashboard() {
                       backgroundColor: '#ffffff',
                       border: '1px solid #e5e7eb',
                       borderRadius: '8px',
-                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                      fontSize: isMobile ? '12px' : '14px'
                     }}
                   />
+                  {!isMobile && <Legend />}
                   <defs>
                     <linearGradient id="paidGradient" x1="0" y1="0" x2="1" y2="1">
                       <stop offset="0%" stopColor="#10b981" />
@@ -409,19 +545,41 @@ export function Dashboard() {
                   </defs>
                 </PieChart>
               </ResponsiveContainer>
+              {isMobile && (
+                <div className="flex justify-center mt-3 space-x-4">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                    <span className="text-xs text-gray-600">Paid: {bills.filter((bill) => bill.status === "paid").length}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                    <span className="text-xs text-gray-600">Unpaid: {bills.filter((bill) => bill.status !== "paid").length}</span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
           
-          <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden hover:scale-[1.02] transition-all duration-300 ease-out hover:shadow-2xl">
-            <CardHeader className="bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 border-b border-gray-200 px-6 py-6">
-              <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-3">
-                <CreditCard className="h-6 w-6 text-purple-600" />
+          <Card className={`bg-white shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
+            isMobile ? 'hover:shadow-xl' : 'hover:scale-[1.02] hover:shadow-2xl'
+          }`}>
+            <CardHeader className={`bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 border-b border-gray-200 ${
+              isMobile ? 'px-4 py-4' : 'px-6 py-6'
+            }`}>
+              <CardTitle className={`font-bold text-gray-900 flex items-center gap-3 ${
+                isMobile ? 'text-lg' : 'text-xl'
+              }`}>
+                <CreditCard className={`text-purple-600 ${
+                  isMobile ? 'h-5 w-5' : 'h-6 w-6'
+                }`} />
                 Maintenance Management Bills
               </CardTitle>
-              <p className="text-sm text-gray-600 mt-1">Payment status distribution</p>
+              <p className={`text-gray-600 mt-1 ${
+                isMobile ? 'text-xs' : 'text-sm'
+              }`}>Payment status distribution</p>
             </CardHeader>
-            <CardContent className="p-6">
-              <ResponsiveContainer width="100%" height={320}>
+            <CardContent className={isMobile ? "p-4" : "p-6"}>
+              <ResponsiveContainer width="100%" height={isMobile ? 200 : 320}>
                 <PieChart>
                   <Pie
                     data={[
@@ -438,9 +596,9 @@ export function Dashboard() {
                     ]}
                     cx="50%"
                     cy="50%"
-                    outerRadius={90}
+                    outerRadius={isMobile ? 60 : 90}
                     dataKey="value"
-                    label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                    label={isMobile ? false : ({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
                     labelLine={false}
                   >
                     <Cell fill="url(#maintenancePaidGradient)" />
@@ -451,9 +609,11 @@ export function Dashboard() {
                       backgroundColor: '#ffffff',
                       border: '1px solid #e5e7eb',
                       borderRadius: '8px',
-                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                      fontSize: isMobile ? '12px' : '14px'
                     }}
                   />
+                  {!isMobile && <Legend />}
                   <defs>
                     <linearGradient id="maintenancePaidGradient" x1="0" y1="0" x2="1" y2="1">
                       <stop offset="0%" stopColor="#8b5cf6" />
@@ -466,6 +626,18 @@ export function Dashboard() {
                   </defs>
                 </PieChart>
               </ResponsiveContainer>
+              {isMobile && (
+                <div className="flex justify-center mt-3 space-x-4">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
+                    <span className="text-xs text-gray-600">Paid: {maintenanceBills.filter((bill) => bill.status === "paid").length}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
+                    <span className="text-xs text-gray-600">Unpaid: {maintenanceBills.filter((bill) => bill.status !== "paid").length}</span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

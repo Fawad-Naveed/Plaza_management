@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Search, Plus, Loader2, Building, Phone, Mail, Settings, Trash2 } from "lucide-react"
 import { getOptimizedSupabaseClient } from "@/lib/supabase-optimized"
 import { useRenderPerformance, useQueryPerformance } from "@/hooks/use-performance"
+import { hashPassword, isUsernameAvailable } from "@/lib/auth"
 
 // Types
 interface Business {
@@ -22,6 +23,8 @@ interface Business {
   shop_number: string
   rent_amount: number
   status: string
+  username?: string
+  password_hash?: string
   created_at: string
 }
 
@@ -64,7 +67,9 @@ export function BusinessManagementOptimized() {
     floor_number: "",
     shop_number: "",
     rent_amount: "",
-    status: "active"
+    status: "active",
+    username: "",
+    password: ""
   })
   
   // Form validation state
@@ -112,6 +117,17 @@ export function BusinessManagementOptimized() {
         if (isNaN(Number(value)) || Number(value) < 0) return 'Please enter a valid rent amount'
         return ''
         
+      case 'username':
+        if (!value.trim()) return 'Username is required for business login'
+        if (value.trim().length < 3) return 'Username must be at least 3 characters'
+        if (!/^[a-zA-Z0-9_]+$/.test(value)) return 'Username can only contain letters, numbers, and underscores'
+        return ''
+        
+      case 'password':
+        if (!value.trim()) return 'Password is required for business login'
+        if (value.length < 6) return 'Password must be at least 6 characters'
+        return ''
+        
       default:
         return ''
     }
@@ -121,7 +137,7 @@ export function BusinessManagementOptimized() {
   const validateForm = useCallback(() => {
     console.log('🔍 Validating form with data:', newBusiness)
     
-    const requiredFields = ['name', 'owner_name', 'phone', 'floor_number', 'shop_number', 'rent_amount']
+    const requiredFields = ['name', 'owner_name', 'phone', 'floor_number', 'shop_number', 'rent_amount', 'username', 'password']
     const errors: Record<string, string> = {}
     
     requiredFields.forEach(field => {
@@ -263,7 +279,7 @@ export function BusinessManagementOptimized() {
       console.log('❌ Validation failed:', fieldErrors)
       
       // Mark all required fields as touched to show errors
-      const requiredFields = ['name', 'owner_name', 'phone', 'floor_number', 'shop_number', 'rent_amount']
+      const requiredFields = ['name', 'owner_name', 'phone', 'floor_number', 'shop_number', 'rent_amount', 'username', 'password']
       const touchedState: Record<string, boolean> = {}
       requiredFields.forEach(field => {
         touchedState[field] = true
@@ -283,12 +299,27 @@ export function BusinessManagementOptimized() {
     try {
       setLoading(true)
       setError(null)
+      
+      // Check if username is available
+      const usernameAvailable = await isUsernameAvailable(newBusiness.username)
+      if (!usernameAvailable) {
+        setError('Username already exists. Please choose a different username.')
+        setFieldErrors(prev => ({ ...prev, username: 'Username already exists' }))
+        setTouchedFields(prev => ({ ...prev, username: true }))
+        setLoading(false)
+        return
+      }
+      
+      // Hash password
+      const hashedPassword = await hashPassword(newBusiness.password)
 
       const businessData = {
         ...newBusiness,
         floor_number: parseInt(newBusiness.floor_number) || 1,
         rent_amount: parseFloat(newBusiness.rent_amount) || 0,
-        email: newBusiness.email.trim() || null
+        email: newBusiness.email.trim() || null,
+        password_hash: hashedPassword,
+        password: undefined // Remove plain password from data
       }
 
       const { data, error } = await measureQuery('add-business', () =>
@@ -311,7 +342,9 @@ export function BusinessManagementOptimized() {
         floor_number: "",
         shop_number: "",
         rent_amount: "",
-        status: "active"
+        status: "active",
+        username: "",
+        password: ""
       })
       setFieldErrors({})
       setTouchedFields({})
@@ -403,7 +436,9 @@ export function BusinessManagementOptimized() {
       floor_number: "",
       shop_number: "",
       rent_amount: "",
-      status: "active"
+      status: "active",
+      username: "",
+      password: ""
     })
   }, [])
 
@@ -626,6 +661,57 @@ export function BusinessManagementOptimized() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              {/* Login Credentials Section */}
+              <div className="border-t pt-4 mt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Business Login Credentials</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="username" className="text-sm font-medium">
+                      Username <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="username"
+                      value={newBusiness.username}
+                      onChange={(e) => handleFieldChange('username', e.target.value)}
+                      onBlur={(e) => handleFieldBlur('username', e.target.value)}
+                      placeholder="Enter username for business login"
+                      className={`${
+                        fieldErrors.username && touchedFields.username 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                          : ''
+                      }`}
+                    />
+                    {fieldErrors.username && touchedFields.username && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.username}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="password" className="text-sm font-medium">
+                      Password <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={newBusiness.password}
+                      onChange={(e) => handleFieldChange('password', e.target.value)}
+                      onBlur={(e) => handleFieldBlur('password', e.target.value)}
+                      placeholder="Enter password for business login"
+                      className={`${
+                        fieldErrors.password && touchedFields.password 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                          : ''
+                      }`}
+                    />
+                    {fieldErrors.password && touchedFields.password && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  These credentials will allow the business to log in and view their own data.
+                </p>
               </div>
 
               {error && (

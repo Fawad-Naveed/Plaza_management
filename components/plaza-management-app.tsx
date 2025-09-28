@@ -2,7 +2,10 @@
 
 import { useState } from "react"
 import dynamic from "next/dynamic"
+import { Menu, MessageCircle } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Sidebar } from "@/components/sidebar"
+import { useMobileSidebar } from "@/hooks/use-mobile"
 
 // Dynamically import heavy sections to avoid loading them all on first paint
 const Dashboard = dynamic(() => import("@/components/dashboard").then(m => m.Dashboard), {
@@ -49,6 +52,10 @@ const Settings = dynamic(() => import("@/components/settings").then(m => m.Setti
   ssr: false,
   loading: () => <div className="p-6">Loading settings...</div>,
 })
+const AdminQueries = dynamic(() => import("@/components/admin-queries").then(m => m.AdminQueries), {
+  ssr: false,
+  loading: () => <div className="p-6">Loading queries...</div>,
+})
 
 // Note: Using original CustomerManagement component with added validation
 
@@ -79,6 +86,14 @@ export const navigationItems: NavigationItem[] = [
     subItems: [
       { id: "bill-generate", label: "Generate Bills" },
       { id: "bill-all", label: "All Bills" },
+    ],
+  },
+  {
+    id: "payments",
+    label: "Payment Management",
+    subItems: [
+      { id: "payment-unpaid", label: "Pending Payments" },
+      { id: "payment-paid", label: "Payment History" },
     ],
   },
   {
@@ -119,6 +134,7 @@ export const navigationItems: NavigationItem[] = [
     ],
   },
   // { id: "terms-conditions", label: "Terms & Conditions" },
+  { id: "queries", label: "Queries" },
   { id: "tc", label: "Term and Condition" },
   { id: "settings", label: "Settings" },
 ]
@@ -127,6 +143,7 @@ export function PlazaManagementApp() {
   const [activeSection, setActiveSection] = useState("dashboard")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0)
+  const { isOpen: isMobileDrawerOpen, isMobile, toggleSidebar: toggleMobileDrawer } = useMobileSidebar()
 
   const renderContent = () => {
     switch (activeSection) {
@@ -169,6 +186,8 @@ export function PlazaManagementApp() {
         return <ReportsModule activeSubSection={activeSection} />
       case "terms-conditions":
         return <TermsConditions />
+      case "queries":
+        return <AdminQueries />
       case "tc":
         return <TCComponent />
       case "settings":
@@ -179,7 +198,8 @@ export function PlazaManagementApp() {
   }
 
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen bg-white overflow-hidden">
+      {/* Sidebar */}
       <Sidebar
         key={sidebarRefreshKey}
         navigationItems={navigationItems}
@@ -187,10 +207,46 @@ export function PlazaManagementApp() {
         onSectionChange={setActiveSection}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        isMobileDrawerOpen={isMobileDrawerOpen}
+        onMobileDrawerToggle={toggleMobileDrawer}
       />
-      <main className={`flex-1 overflow-auto transition-all duration-300 ${sidebarCollapsed ? "ml-16" : "ml-64"}`}>
-        <div className="p-6">{renderContent()}</div>
-      </main>
+      
+      {/* Main Content Area */}
+      <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Mobile Header - Only visible on mobile */}
+        {isMobile && (
+          <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between lg:hidden z-30">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleMobileDrawer}
+              className="touch-button text-gray-600 hover:text-gray-900"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <h1 className="text-lg font-semibold text-gray-900 truncate">
+              Plaza Management
+            </h1>
+            <div className="w-10" /> {/* Spacer for centering */}
+          </header>
+        )}
+        
+        {/* Main Content */}
+        <main className={`
+          flex-1 overflow-auto transition-all duration-300
+          ${
+            isMobile 
+              ? "" // No margin on mobile, content takes full width
+              : sidebarCollapsed 
+                ? "ml-16" 
+                : "ml-64"
+          }
+        `}>
+          <div className={isMobile ? "mobile-p" : "p-6"}>
+            {renderContent()}
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

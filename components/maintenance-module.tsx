@@ -545,6 +545,34 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
   const handleStatusChange = async (billId: string, newStatus: "pending" | "paid" | "overdue" | "cancelled") => {
     try {
       await updateMaintenanceBill(billId, { status: newStatus })
+      
+      // If marking as paid, create a maintenance payment record with admin tracking
+      if (newStatus === "paid") {
+        // Get current auth state for admin info
+        const { getAuthState } = await import('@/lib/auth')
+        const authState = getAuthState()
+        
+        const bill = maintenanceBills.find(b => b.id === billId)
+        if (bill) {
+          const paymentData = {
+            business_id: bill.business_id,
+            maintenance_bill_id: billId,
+            payment_date: new Date().toISOString().split('T')[0],
+            amount: bill.amount,
+            payment_method: 'cash' as const, // Default payment method when marked by admin
+            notes: `Maintenance bill marked as paid by ${authState?.role === 'admin' ? 'admin' : 'business user'}`,
+            admin_id: authState?.role === 'admin' ? 'admin' : authState?.businessId,
+            marked_paid_by: authState?.role === 'admin' ? 'Admin' : authState?.businessName || 'Business User',
+            marked_paid_date: new Date().toISOString()
+          }
+          
+          const paymentResult = await createMaintenancePayment(paymentData)
+          if (paymentResult.error) {
+            console.error('Error creating maintenance payment record:', paymentResult.error)
+          }
+        }
+      }
+      
       await loadAllData()
       setError(null)
     } catch (error) {

@@ -1,10 +1,10 @@
-import { PlazaManagementApp } from "@/components/plaza-management-app"
+import { AppRouter } from "@/components/app-router"
 import { ErrorBoundary } from "@/components/error-boundary"
 
 export default function Home() {
   return (
     <ErrorBoundary>
-      <PlazaManagementApp />
+      <AppRouter />
     </ErrorBoundary>
   )
 }

@@ -1,10 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronDown, ChevronRight, Menu, X, Building } from "lucide-react"
+import { ChevronDown, ChevronRight, Menu, X, Building, Home, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { NavigationItem } from "@/components/plaza-management-app"
 import { getInformation, type Information } from "@/lib/database"
+import { useMobileSidebar, usePreventScroll, useTouchGestures } from "@/hooks/use-mobile"
+import { logout } from "@/lib/auth"
 
 interface SidebarProps {
   navigationItems: NavigationItem[]
@@ -12,6 +14,8 @@ interface SidebarProps {
   onSectionChange: (section: string) => void
   collapsed: boolean
   onToggleCollapse: () => void
+  isMobileDrawerOpen?: boolean
+  onMobileDrawerToggle?: () => void
 }
 
 export function Sidebar({
@@ -20,9 +24,16 @@ export function Sidebar({
   onSectionChange,
   collapsed,
   onToggleCollapse,
+  isMobileDrawerOpen = false,
+  onMobileDrawerToggle,
 }: SidebarProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>(["customer"])
   const [businessInfo, setBusinessInfo] = useState<Information | null>(null)
+  const { isMobile } = useMobileSidebar()
+  const { handleTouchStart, handleTouchMove, handleTouchEnd } = useTouchGestures()
+  
+  // Prevent body scroll when mobile drawer is open
+  usePreventScroll(isMobile && isMobileDrawerOpen)
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
@@ -51,133 +62,231 @@ export function Sidebar({
     return activeSection === itemId || activeSection.startsWith(itemId + "-")
   }
 
-  return (
-    <div
-      className={`fixed left-0 top-0 h-full bg-gray-900 text-white transition-all duration-300 z-50 flex flex-col overflow-hidden shadow-xl ${
-        collapsed ? "w-16" : "w-64"
-      } max-h-screen`}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800">
-        {!collapsed && <h1 className="text-xl font-bold tracking-wide">Plaza Management</h1>}
-        <Button variant="ghost" size="sm" onClick={onToggleCollapse} className="text-gray-300 hover:text-white hover:bg-gray-700 rounded-md">
-          {collapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
-        </Button>
-      </div>
+  // Handle mobile section change and close drawer
+  const handleMobileSectionChange = (section: string) => {
+    onSectionChange(section)
+    if (isMobile && onMobileDrawerToggle) {
+      onMobileDrawerToggle()
+    }
+  }
 
-      {/* Navigation */}
-      <nav className="p-3 flex-1 overflow-y-auto pr-1 scroll-smooth pb-4 min-h-0" style={{
-        scrollbarWidth: 'thin',
-        scrollbarColor: '#4B5563 #1F2937'
-      }}>
-        {navigationItems.map((item) => (
-          <div key={item.id} className="mb-2">
-            {item.subItems ? (
-              <>
+  // Handle swipe gestures for mobile drawer
+  const handleTouchEndWithSwipe = () => {
+    const swipeResult = handleTouchEnd()
+    if (swipeResult?.isLeftSwipe && isMobileDrawerOpen && onMobileDrawerToggle) {
+      onMobileDrawerToggle()
+    }
+  }
+
+  return (
+    <>
+      {/* Mobile Backdrop */}
+      {isMobile && isMobileDrawerOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={onMobileDrawerToggle}
+        />
+      )}
+      
+      {/* Sidebar Container */}
+      <div
+        className={`
+          fixed left-0 top-0 h-full bg-gray-900 text-white z-50 flex flex-col overflow-hidden shadow-xl max-h-screen
+          transition-all duration-300 ease-in-out
+          ${
+            isMobile 
+              ? `w-80 ${isMobileDrawerOpen ? 'mobile-nav-visible' : 'mobile-nav-hidden'}`
+              : collapsed 
+                ? "w-16" 
+                : "w-64"
+          }
+        `}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove} 
+        onTouchEnd={handleTouchEndWithSwipe}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800 min-h-[64px]">
+          <div className="flex items-center gap-3">
+            {isMobile && (
+              <div className="flex items-center justify-center w-8 h-8 bg-blue-600 rounded-lg">
+                <Home className="h-4 w-4 text-white" />
+              </div>
+            )}
+            {(!collapsed || isMobile) && (
+              <h1 className={`font-bold tracking-wide ${
+                isMobile ? 'text-lg' : 'text-xl'
+              }`}>
+                Plaza Management
+              </h1>
+            )}
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={isMobile ? onMobileDrawerToggle : onToggleCollapse} 
+            className="text-gray-300 hover:text-white hover:bg-gray-700 rounded-md touch-button"
+          >
+            {(collapsed && !isMobile) ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+          </Button>
+        </div>
+
+        {/* Navigation */}
+        <nav className={`${isMobile ? 'p-4' : 'p-3'} flex-1 overflow-y-auto pr-1 scroll-smooth pb-4 min-h-0`} style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#4B5563 #1F2937'
+        }}>
+          {navigationItems.map((item) => (
+            <div key={item.id} className={isMobile ? "mb-3" : "mb-2"}>
+              {item.subItems ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    className={`w-full justify-start text-left hover:bg-gray-700 hover:text-white hover:scale-105 transition-all duration-200 rounded-lg ${
+                      isActive(item.id) ? "bg-gray-700 text-white" : "text-gray-300"
+                    } ${
+                      collapsed && !isMobile ? "px-2 py-3" : isMobile ? "px-4 py-4 touch-button" : "px-3 py-2"
+                    }`}
+                    onClick={() => (collapsed && !isMobile) ? null : toggleSection(item.id)}
+                  >
+                    {(collapsed && !isMobile) ? (
+                      <div className="w-full flex justify-center">
+                        <span className="text-xs font-medium">{item.label.charAt(0)}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <span className={`flex-1 ${isMobile ? 'text-base' : ''}`}>{item.label}</span>
+                        {expandedSections.includes(item.id) ? (
+                          <ChevronDown className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
+                        ) : (
+                          <ChevronRight className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
+                        )}
+                      </>
+                    )}
+                  </Button>
+                  {((!collapsed && !isMobile) || isMobile) && expandedSections.includes(item.id) && (
+                    <div className={`${isMobile ? 'ml-4 mt-3' : 'ml-6 mt-2'} space-y-${isMobile ? '2' : '1'} border-l border-gray-600 ${isMobile ? 'pl-4' : 'pl-3'}`}>
+                      {item.subItems.map((subItem) => (
+                        <Button
+                          key={subItem.id}
+                          variant="ghost"
+                          className={`w-full justify-start text-left hover:bg-gray-700 hover:text-white hover:scale-105 transition-all duration-200 rounded-md ${
+                            activeSection === subItem.id ? "bg-gray-600 text-white" : "text-gray-400"
+                          } ${
+                            isMobile ? "py-3 touch-button text-sm" : "py-1.5 text-sm"
+                          }`}
+                          onClick={() => handleMobileSectionChange(subItem.id)}
+                        >
+                          {subItem.label}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
                 <Button
                   variant="ghost"
                   className={`w-full justify-start text-left hover:bg-gray-700 hover:text-white hover:scale-105 transition-all duration-200 rounded-lg ${
-                    isActive(item.id) ? "bg-gray-700 text-white" : "text-gray-300"
-                  } ${collapsed ? "px-2 py-3" : "px-3 py-2"}`}
-                  onClick={() => !collapsed && toggleSection(item.id)}
+                    activeSection === item.id ? "bg-gray-700 text-white" : "text-gray-300"
+                  } ${
+                    collapsed && !isMobile ? "px-2 py-3" : isMobile ? "px-4 py-4 touch-button" : "px-3 py-2"
+                  }`}
+                  onClick={() => handleMobileSectionChange(item.id)}
                 >
-                  {collapsed ? (
+                  {(collapsed && !isMobile) ? (
                     <div className="w-full flex justify-center">
                       <span className="text-xs font-medium">{item.label.charAt(0)}</span>
                     </div>
                   ) : (
-                    <>
-                      <span className="flex-1">{item.label}</span>
-                      {expandedSections.includes(item.id) ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </>
+                    <span className={isMobile ? 'text-base' : ''}>{item.label}</span>
                   )}
                 </Button>
-                {!collapsed && expandedSections.includes(item.id) && (
-                  <div className="ml-6 mt-2 space-y-1 border-l border-gray-600 pl-3">
-                    {item.subItems.map((subItem) => (
-                      <Button
-                        key={subItem.id}
-                        variant="ghost"
-                        className={`w-full justify-start text-left text-sm hover:bg-gray-700 hover:text-white hover:scale-105 transition-all duration-200 rounded-md ${
-                          activeSection === subItem.id ? "bg-gray-600 text-white" : "text-gray-400"
-                        } py-1.5`}
-                        onClick={() => onSectionChange(subItem.id)}
-                      >
-                        {subItem.label}
-                      </Button>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <Button
-                variant="ghost"
-                className={`w-full justify-start text-left hover:bg-gray-700 hover:text-white hover:scale-105 transition-all duration-200 rounded-lg ${
-                  activeSection === item.id ? "bg-gray-700 text-white" : "text-gray-300"
-                } ${collapsed ? "px-2 py-3" : "px-3 py-2"}`}
-                onClick={() => onSectionChange(item.id)}
-              >
-                {collapsed ? (
-                  <div className="w-full flex justify-center">
-                    <span className="text-xs font-medium">{item.label.charAt(0)}</span>
-                  </div>
-                ) : (
-                  item.label
-                )}
-              </Button>
-            )}
-          </div>
-        ))}
-      </nav>
-
-      {/* Business Branding */}
-      {businessInfo && (
-        <div className="border-t border-gray-700 p-4 mt-auto flex-shrink-0 bg-gray-800">
-          {!collapsed ? (
-            <div className="flex items-center space-x-3">
-              {businessInfo.logo_url ? (
-                <img
-                  src={businessInfo.logo_url}
-                  alt={businessInfo.business_name}
-                  className="w-9 h-9 rounded-lg object-cover border border-gray-600"
-                />
-              ) : (
-                <div className="w-9 h-9 bg-gray-600 rounded-lg flex items-center justify-center border border-gray-500">
-                  <Building className="h-5 w-5 text-gray-300" />
-                </div>
               )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">
-                  {businessInfo.business_name}
-                </p>
-                {businessInfo.contact_email && (
-                  <p className="text-xs text-gray-300 truncate">
-                    {businessInfo.contact_email}
+            </div>
+          ))}
+        </nav>
+
+        {/* Logout Button */}
+        <div className={`border-t border-gray-700 flex-shrink-0 ${
+          isMobile ? 'p-4' : 'p-3'
+        }`}>
+          <Button
+            variant="ghost"
+            onClick={logout}
+            className={`w-full justify-start text-left hover:bg-red-600 hover:text-white transition-all duration-200 rounded-lg text-gray-300 group ${
+              collapsed && !isMobile ? "px-2 py-3" : isMobile ? "px-4 py-4 touch-button" : "px-3 py-2"
+            }`}
+          >
+            {(collapsed && !isMobile) ? (
+              <div className="w-full flex justify-center">
+                <LogOut className="h-4 w-4 group-hover:text-white" />
+              </div>
+            ) : (
+              <>
+                <LogOut className={`${isMobile ? 'h-5 w-5 mr-3' : 'h-4 w-4 mr-3'} group-hover:text-white`} />
+                <span className={isMobile ? 'text-base' : ''}>Sign Out</span>
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Business Branding */}
+        {businessInfo && (
+          <div className={`border-t border-gray-700 mt-auto flex-shrink-0 bg-gray-800 ${
+            isMobile ? 'p-4' : 'p-4'
+          }`}>
+            {(!collapsed || isMobile) ? (
+              <div className="flex items-center space-x-3">
+                {businessInfo.logo_url ? (
+                  <img
+                    src={businessInfo.logo_url}
+                    alt={businessInfo.business_name}
+                    className={`rounded-lg object-cover border border-gray-600 ${
+                      isMobile ? 'w-10 h-10' : 'w-9 h-9'
+                    }`}
+                  />
+                ) : (
+                  <div className={`bg-gray-600 rounded-lg flex items-center justify-center border border-gray-500 ${
+                    isMobile ? 'w-10 h-10' : 'w-9 h-9'
+                  }`}>
+                    <Building className={`text-gray-300 ${
+                      isMobile ? 'h-6 w-6' : 'h-5 w-5'
+                    }`} />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className={`font-semibold text-white truncate ${
+                    isMobile ? 'text-base' : 'text-sm'
+                  }`}>
+                    {businessInfo.business_name}
                   </p>
+                  {businessInfo.contact_email && (
+                    <p className={`text-gray-300 truncate ${
+                      isMobile ? 'text-sm' : 'text-xs'
+                    }`}>
+                      {businessInfo.contact_email}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-center">
+                {businessInfo.logo_url ? (
+                  <img
+                    src={businessInfo.logo_url}
+                    alt={businessInfo.business_name}
+                    className="w-9 h-9 rounded-lg object-cover border border-gray-600"
+                  />
+                ) : (
+                  <div className="w-9 h-9 bg-gray-600 rounded-lg flex items-center justify-center border border-gray-500">
+                    <Building className="h-5 w-5 text-gray-300" />
+                  </div>
                 )}
               </div>
-            </div>
-          ) : (
-            <div className="flex justify-center">
-              {businessInfo.logo_url ? (
-                <img
-                  src={businessInfo.logo_url}
-                  alt={businessInfo.business_name}
-                  className="w-9 h-9 rounded-lg object-cover border border-gray-600"
-                />
-              ) : (
-                <div className="w-9 h-9 bg-gray-600 rounded-lg flex items-center justify-center border border-gray-500">
-                  <Building className="h-5 w-5 text-gray-300" />
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   )
 }

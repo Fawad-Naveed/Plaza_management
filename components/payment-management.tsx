@@ -20,10 +20,16 @@ import {
   getBills,
   updateBill,
   getInformation,
+  getPendingPayments,
+  approvePendingPayment,
+  rejectPendingPayment,
+  getMeterReadings,
   type Business,
   type Bill,
   type Payment,
   type Information,
+  type PendingPayment,
+  type MeterReading,
 } from "@/lib/database"
 
 interface PaymentWithDetails extends Payment {
@@ -48,6 +54,14 @@ interface BillWithDetails extends Bill {
   daysOverdue?: number
 }
 
+interface PendingPaymentWithDetails extends PendingPayment {
+  customerName?: string
+  shopNumber?: string
+  billNumber?: string
+  floor?: string
+  businessType?: string
+}
+
 interface PaymentManagementProps {
   activeSubSection: string
 }
@@ -58,9 +72,14 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
   const [businesses, setBusinesses] = useState<Business[]>([])
   const [businessBills, setBusinessBills] = useState<BillWithDetails[]>([])
   const [businessInfo, setBusinessInfo] = useState<Information | null>(null)
+  const [pendingPayments, setPendingPayments] = useState<PendingPaymentWithDetails[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingPendingPayments, setLoadingPendingPayments] = useState(true)
   const [loadingBusinesses, setLoadingBusinesses] = useState(false)
   const [loadingBills, setLoadingBills] = useState(false)
+  const [selectedPendingPayment, setSelectedPendingPayment] = useState<PendingPaymentWithDetails | null>(null)
+  const [reviewNotes, setReviewNotes] = useState("")
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false)
 
   const [newPayment, setNewPayment] = useState({
     businessId: "",
@@ -303,6 +322,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
 
   const loadAllData = async () => {
     setLoading(true)
+    setLoadingPendingPayments(true)
     try {
       const businessesData = await getBusinesses()
       setBusinesses(businessesData)
@@ -317,6 +337,44 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
 
       const billsData = await getBills()
       const paymentsData = await getPayments()
+      const pendingPaymentsData = await getPendingPayments()
+      const meterReadingsData = await getMeterReadings() // Load all meter readings
+
+      // Load pending payments with details
+      const pendingPaymentsWithDetails = pendingPaymentsData.map((pendingPayment): PendingPaymentWithDetails => {
+        const business = businessesData.find((b) => b.id === pendingPayment.business_id)
+        let billNumber = "N/A"
+        let billType = "Regular"
+        
+        // Check if this is a meter reading payment (check notes for [ELECTRICITY] marker)
+        if (pendingPayment.notes?.includes('[ELECTRICITY]')) {
+          // This is an electricity payment - find the meter reading
+          const meterReading = meterReadingsData.find(mr => mr.id === pendingPayment.bill_id)
+          if (meterReading) {
+            billNumber = meterReading.bill_number || `ELE-${pendingPayment.bill_id.slice(-6).toUpperCase()}`
+            billType = "Electricity"
+          } else {
+            billNumber = `ELE-${pendingPayment.bill_id.slice(-6).toUpperCase()}`
+            billType = "Electricity"
+          }
+        } else {
+          // Regular bill
+          const bill = billsData.find((b) => b.id === pendingPayment.bill_id)
+          billNumber = bill?.bill_number || "N/A"
+          billType = "Regular"
+        }
+
+        return {
+          ...pendingPayment,
+          customerName: business?.name || "Unknown",
+          shopNumber: business?.shop_number || "N/A",
+          billNumber: billNumber,
+          floor: `Floor ${business?.floor_number || 0}`,
+          businessType: business?.type || "Unknown",
+        }
+      })
+      setPendingPayments(pendingPaymentsWithDetails)
+      setLoadingPendingPayments(false)
 
       const billsWithDetails = billsData.map((bill): BillWithDetails => {
         const business = businessesData.find((b) => b.id === bill.business_id)
@@ -392,6 +450,54 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
       console.error("Error loading business rent amount:", error)
     } finally {
       setLoadingBills(false)
+    }
+  }
+
+  const handleApprovePendingPayment = async (pendingPayment: PendingPaymentWithDetails, action: 'approve' | 'reject') => {
+    setSelectedPendingPayment(pendingPayment)
+    if (action === 'approve') {
+      setShowApprovalDialog(true)
+    } else {
+      // For rejection, we can ask for notes directly
+      const notes = prompt('Please provide a reason for rejection:')
+      if (notes) {
+        setLoadingPendingPayments(true)
+        await handleRejectPayment(pendingPayment.id, notes)
+      }
+    }
+  }
+
+  const handleApprovePayment = async () => {
+    if (!selectedPendingPayment) return
+    
+    try {
+      setLoading(true)
+      setLoadingPendingPayments(true)
+      await approvePendingPayment(selectedPendingPayment.id, 'Admin', reviewNotes)
+      setShowApprovalDialog(false)
+      setSelectedPendingPayment(null)
+      setReviewNotes('')
+      await loadAllData() // Reload data to reflect changes
+      alert('Payment approved successfully!')
+    } catch (error) {
+      console.error('Error approving payment:', error)
+      alert('Failed to approve payment. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRejectPayment = async (pendingPaymentId: string, notes: string) => {
+    try {
+      setLoading(true)
+      await rejectPendingPayment(pendingPaymentId, 'Admin', notes)
+      await loadAllData() // Reload data to reflect changes
+      alert('Payment rejected successfully!')
+    } catch (error) {
+      console.error('Error rejecting payment:', error)
+      alert('Failed to reject payment. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -850,7 +956,180 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
     </Card>
   )
 
+  const renderPendingPayments = () => (
+    <div className="space-y-6">
+      <Card className="border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold flex items-center justify-between">
+            Pending Payment Approvals
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Search pending payments..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-64"
+              />
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingPendingPayments && (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700"></div>
+              <p className="ml-4 text-lg font-semibold text-gray-600">Loading pending payments...</p>
+            </div>
+          )}
+          {!loadingPendingPayments && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <Card className="p-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-yellow-500" />
+                  <div>
+                    <div className="text-sm text-gray-600">Pending Approvals</div>
+                    <div className="text-xl font-bold text-yellow-600">
+                      {pendingPayments.filter(p => p.status === 'pending').length}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            <Card className="p-4">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                <div>
+                  <div className="text-sm text-gray-600">Approved Today</div>
+                  <div className="text-xl font-bold text-green-600">
+                    {pendingPayments.filter(p => p.status === 'approved' && 
+                      new Date(p.reviewed_at || '').toDateString() === new Date().toDateString()).length}
+                  </div>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-red-500" />
+                <div>
+                  <div className="text-sm text-gray-600">Total Amount Pending</div>
+                  <div className="text-xl font-bold text-red-600">
+                    PKR {pendingPayments
+                      .filter(p => p.status === 'pending')
+                      .reduce((sum, p) => sum + p.amount, 0).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            </Card>
+            </div>
+          )}
+
+          {!loadingPendingPayments && pendingPayments.filter(p => p.status === 'pending').length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Clock className="h-16 w-16 text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-600 mb-2">No Pending Payments</h3>
+              <p className="text-sm text-gray-500">There are currently no payment submissions awaiting approval.</p>
+            </div>
+          )}
+
+          {!loadingPendingPayments && pendingPayments.filter(p => p.status === 'pending').length > 0 && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Submitted</TableHead>
+                  <TableHead>Business</TableHead>
+                  <TableHead>Bill No.</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Payment Method</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingPayments
+                  .filter(payment => payment.status === 'pending')
+                  .filter(payment =>
+                    payment.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    payment.billNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    payment.shopNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+                  )
+                  .map((payment) => (
+                  <TableRow key={payment.id}>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div>{new Date(payment.submitted_at).toLocaleDateString()}</div>
+                        <div className="text-gray-500">{new Date(payment.submitted_at).toLocaleTimeString()}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{payment.customerName}</div>
+                        <div className="text-sm text-gray-500">{payment.shopNumber}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{payment.billNumber}</div>
+                        <div className="text-xs">
+                          <Badge variant="outline" className={`${payment.notes?.includes('[ELECTRICITY]') ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                            {payment.notes?.includes('[ELECTRICITY]') ? '⚡ Electricity' : '🏢 Rental'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-bold text-green-600">PKR {payment.amount.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {payment.payment_method.replace('_', ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                        {payment.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => handleApprovePendingPayment(payment, 'approve')}
+                          disabled={loading}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleApprovePendingPayment(payment, 'reject')}
+                          disabled={loading}
+                        >
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+
   const renderContent = () => {
+    // If activeSubSection is payment-unpaid, show pending payments for admin approval
+    if (activeSubSection === 'payment-unpaid') {
+      return renderPendingPayments()
+    }
+    
+    // If activeSubSection is payment-paid, show payment history
+    if (activeSubSection === 'payment-paid') {
+      return renderPaidBills()
+    }
+    
+    // Default tabbed interface for other cases
     return (
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3">
@@ -984,6 +1263,87 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
                 <Download className="h-4 w-4 mr-2" />
                 Download Receipt
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Approval Dialog */}
+      {showApprovalDialog && selectedPendingPayment && (
+        <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Approve Payment</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="text-sm space-y-2">
+                <div className="flex justify-between">
+                  <span>Business:</span>
+                  <span className="font-medium">{selectedPendingPayment.customerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shop:</span>
+                  <span className="font-medium">{selectedPendingPayment.shopNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Bill No:</span>
+                  <span className="font-medium">{selectedPendingPayment.billNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Amount:</span>
+                  <span className="font-medium text-green-600">PKR {selectedPendingPayment.amount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Payment Method:</span>
+                  <span className="font-medium capitalize">{selectedPendingPayment.payment_method.replace('_', ' ')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Submitted:</span>
+                  <span className="font-medium">{new Date(selectedPendingPayment.submitted_at).toLocaleString()}</span>
+                </div>
+                {selectedPendingPayment.notes && (
+                  <div>
+                    <span className="font-medium">Notes:</span>
+                    <p className="text-gray-600 text-xs mt-1">{selectedPendingPayment.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label htmlFor="review-notes">Admin Notes (Optional)</Label>
+                <textarea
+                  id="review-notes"
+                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                  rows={3}
+                  placeholder="Add any notes about this approval..."
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowApprovalDialog(false)
+                    setSelectedPendingPayment(null)
+                    setReviewNotes('')
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleApprovePayment}
+                  disabled={loading}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Approve Payment
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

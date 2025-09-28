@@ -18,6 +18,8 @@ export interface Business {
   electricity_consumer_number?: string
   gas_consumer_number?: string
   status: "active" | "inactive" | "terminated"
+  username?: string
+  password_hash?: string
   created_at: string
   updated_at: string
 }
@@ -72,7 +74,30 @@ export interface Payment {
   payment_method: "cash" | "cheque" | "bank_transfer" | "upi" | "card"
   reference_number?: string
   notes?: string
+  admin_id?: string
+  marked_paid_by?: string
+  marked_paid_date?: string
   created_at: string
+}
+
+export interface PendingPayment {
+  id: string
+  business_id: string
+  bill_id: string
+  amount: number
+  payment_method: "cash" | "cheque" | "bank_transfer" | "upi" | "card"
+  payment_date: string
+  notes?: string
+  receipt_image_url?: string
+  submitted_at: string
+  submitted_by?: string
+  status: "pending" | "approved" | "rejected"
+  reviewed_by?: string
+  reviewed_at?: string
+  review_notes?: string
+  payment_id?: string
+  created_at: string
+  updated_at: string
 }
 
 export interface Advance {
@@ -155,6 +180,9 @@ export interface MaintenancePayment {
   payment_method: "cash" | "cheque" | "bank_transfer" | "upi" | "card"
   reference_number?: string
   notes?: string
+  admin_id?: string
+  marked_paid_by?: string
+  marked_paid_date?: string
   created_at: string
 }
 
@@ -189,6 +217,20 @@ export interface TC {
   description?: string
   effective_date: string
   created_at: string
+}
+
+export interface Query {
+  id: string
+  business_id: string
+  title: string
+  description: string
+  category: "maintenance" | "billing" | "facility" | "complaint" | "other"
+  priority: "low" | "medium" | "high" | "urgent"
+  status: "open" | "in-progress" | "resolved" | "closed"
+  admin_response?: string
+  admin_response_date?: string
+  created_at: string
+  updated_at: string
 }
 
 export interface Information {
@@ -665,6 +707,38 @@ export class DatabaseService {
   async deleteTC(id: string): Promise<{ error: any }> {
     const supabase = this.getClient()
     return await supabase.from("t_c").delete().eq("id", id)
+  }
+
+  // Query operations
+  async getQueries(businessId?: string): Promise<{ data: Query[] | null; error: any }> {
+    const supabase = this.getClient()
+    let query = supabase.from("queries").select("*")
+
+    if (businessId) {
+      query = query.eq("business_id", businessId)
+    }
+
+    return await query.order("created_at", { ascending: false })
+  }
+
+  async createQuery(queryData: Omit<Query, "id" | "created_at" | "updated_at">): Promise<{ data: Query | null; error: any }> {
+    const supabase = this.getClient()
+    return await supabase.from("queries").insert(queryData).select().single()
+  }
+
+  async updateQuery(id: string, updates: Partial<Query>): Promise<{ data: Query | null; error: any }> {
+    const supabase = this.getClient()
+    return await supabase
+      .from("queries")
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single()
+  }
+
+  async deleteQuery(id: string): Promise<{ error: any }> {
+    const supabase = this.getClient()
+    return await supabase.from("queries").delete().eq("id", id)
   }
 }
 
@@ -1739,4 +1813,170 @@ export async function checkPartialPaymentExists(businessId: string, month: numbe
     throw new Error(result.error.message)
   }
   return result.data
+}
+
+// Pending Payments convenience functions
+export async function getPendingPayments(status?: "pending" | "approved" | "rejected") {
+  const supabase = createBrowserClient()
+  let query = supabase
+    .from('pending_payments')
+    .select('*')
+    .order('submitted_at', { ascending: false })
+  
+  if (status) {
+    query = query.eq('status', status)
+  }
+  
+  const result = await query
+  if (result.error) {
+    throw new Error(result.error.message)
+  }
+  return result.data || []
+}
+
+export async function createPendingPayment(pendingPayment: Omit<PendingPayment, "id" | "created_at" | "updated_at" | "submitted_at">) {
+  const supabase = createBrowserClient()
+  const result = await supabase
+    .from('pending_payments')
+    .insert([pendingPayment])
+    .select()
+    .single()
+  
+  if (result.error) {
+    throw new Error(result.error.message)
+  }
+  return result.data
+}
+
+export async function updatePendingPayment(id: string, updates: Partial<PendingPayment>) {
+  const supabase = createBrowserClient()
+  const result = await supabase
+    .from('pending_payments')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+  
+  if (result.error) {
+    throw new Error(result.error.message)
+  }
+  return result.data
+}
+
+export async function approvePendingPayment(pendingPaymentId: string, adminName: string, reviewNotes?: string) {
+  const supabase = createBrowserClient()
+  
+  // Get the pending payment details
+  const { data: pendingPayment, error: fetchError } = await supabase
+    .from('pending_payments')
+    .select('*')
+    .eq('id', pendingPaymentId)
+    .single()
+  
+  if (fetchError) {
+    throw new Error(fetchError.message)
+  }
+  
+  if (!pendingPayment) {
+    throw new Error('Pending payment not found')
+  }
+  
+  // No need to create separate payment records - just update the pending payment status
+  // The pending_payments table already contains all the payment information we need
+  
+  // Update the pending payment status
+  const updateData = {
+    status: 'approved',
+    reviewed_by: adminName,
+    reviewed_at: new Date().toISOString(),
+    review_notes: reviewNotes
+  }
+  
+  const { data: updatedPendingPayment, error: updateError } = await supabase
+    .from('pending_payments')
+    .update(updateData)
+    .eq('id', pendingPaymentId)
+    .select()
+    .single()
+  
+  if (updateError) {
+    throw new Error(updateError.message)
+  }
+  
+  // Update the bill status to paid or meter reading payment status
+  // Check if this is a meter reading (notes contain [ELECTRICITY])
+  if (pendingPayment.notes?.includes('[ELECTRICITY]')) {
+    // This is a meter reading payment - update meter_readings table
+    const { error: meterUpdateError } = await supabase
+      .from('meter_readings')
+      .update({ payment_status: 'paid' })
+      .eq('id', pendingPayment.bill_id)
+    
+    if (meterUpdateError) {
+      throw new Error(meterUpdateError.message)
+    }
+  } else {
+    // Check if this is a maintenance bill or regular bill
+    const isMaintenanceBill = pendingPayment.notes?.includes('maintenance bill')
+    
+    if (isMaintenanceBill) {
+      // This is a maintenance bill - update maintenance_bills table
+      const { error: maintenanceBillUpdateError } = await supabase
+        .from('maintenance_bills')
+        .update({ status: 'paid' })
+        .eq('id', pendingPayment.bill_id)
+      
+      if (maintenanceBillUpdateError) {
+        throw new Error(maintenanceBillUpdateError.message)
+      }
+    } else {
+      // This is a regular bill - update bills table
+      const { error: billUpdateError } = await supabase
+        .from('bills')
+        .update({ status: 'paid' })
+        .eq('id', pendingPayment.bill_id)
+      
+      if (billUpdateError) {
+        throw new Error(billUpdateError.message)
+      }
+    }
+  }
+  
+  return { payment: null, updatedPendingPayment }
+}
+
+export async function rejectPendingPayment(pendingPaymentId: string, adminName: string, reviewNotes: string) {
+  const supabase = createBrowserClient()
+  
+  const { data, error } = await supabase
+    .from('pending_payments')
+    .update({
+      status: 'rejected',
+      reviewed_by: adminName,
+      reviewed_at: new Date().toISOString(),
+      review_notes: reviewNotes
+    })
+    .eq('id', pendingPaymentId)
+    .select()
+    .single()
+  
+  if (error) {
+    throw new Error(error.message)
+  }
+  
+  return data
+}
+
+export async function getPendingPaymentsByBusiness(businessId: string) {
+  const supabase = createBrowserClient()
+  const result = await supabase
+    .from('pending_payments')
+    .select('*')
+    .eq('business_id', businessId)
+    .order('submitted_at', { ascending: false })
+  
+  if (result.error) {
+    throw new Error(result.error.message)
+  }
+  return result.data || []
 }

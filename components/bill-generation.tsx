@@ -32,6 +32,7 @@ import {
 import { FileText, Plus, Zap, Wrench, Search, Eye, Download, Loader2, Edit, Trash2, Printer, Flame } from "lucide-react"
 import { clientDb, type Business, type Bill as DBBill, type MeterReading, type Floor, type Advance, type PartialPayment, getInformation, type Information, updateMeterReading, type TermsCondition, getTCs, type TC } from "@/lib/database"
 import { TermsSelectionDialog } from "./terms-selection-dialog"
+import { useBreakpoint } from "@/hooks/use-mobile"
 
 declare global {
   interface Window {
@@ -44,6 +45,7 @@ interface BillGenerationProps {
 }
 
 export function BillGeneration({ activeSubSection }: BillGenerationProps) {
+  const { isMobile, isTablet } = useBreakpoint()
   const [businesses, setBusinesses] = useState<Business[]>([])
   const [bills, setBills] = useState<DBBill[]>([])
   const [floors, setFloors] = useState<Floor[]>([])
@@ -1133,6 +1135,33 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
       
       if (error) throw error
       
+      // If marking as paid, create a payment record with admin tracking
+      if (newStatus === "paid") {
+        // Get current auth state for admin info
+        const { getAuthState } = await import('@/lib/auth')
+        const authState = getAuthState()
+        
+        const bill = bills.find(b => b.id === billId)
+        if (bill) {
+          const paymentData = {
+            business_id: bill.business_id,
+            bill_id: billId,
+            payment_date: new Date().toISOString().split('T')[0],
+            amount: bill.total_amount,
+            payment_method: 'cash' as const, // Default payment method when marked by admin
+            notes: `Marked as paid by ${authState?.role === 'admin' ? 'admin' : 'business user'}`,
+            admin_id: authState?.role === 'admin' ? 'admin' : authState?.businessId,
+            marked_paid_by: authState?.role === 'admin' ? 'Admin' : authState?.businessName || 'Business User',
+            marked_paid_date: new Date().toISOString()
+          }
+          
+          const paymentResult = await clientDb.createPayment(paymentData)
+          if (paymentResult.error) {
+            console.error('Error creating payment record:', paymentResult.error)
+          }
+        }
+      }
+      
       // Reload bills to show updated status
       await loadBillData()
       
@@ -1237,7 +1266,29 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
           throw error
         }
       } else {
-        console.log("Update successful:", data)
+      console.log("Update successful:", data)
+      }
+      
+      // If marking as paid, create a payment record with admin tracking
+      if (newStatus === "paid") {
+        const { getAuthState } = await import('@/lib/auth')
+        const authState = getAuthState()
+        
+        const paymentData = {
+          business_id: reading.business_id,
+          payment_date: new Date().toISOString().split('T')[0],
+          amount: reading.amount,
+          payment_method: 'cash' as const, // Default payment method when marked by admin
+          notes: `Electricity meter reading marked as paid by ${authState?.role === 'admin' ? 'admin' : 'business user'}`,
+          admin_id: authState?.role === 'admin' ? 'admin' : authState?.businessId,
+          marked_paid_by: authState?.role === 'admin' ? 'Admin' : authState?.businessName || 'Business User',
+          marked_paid_date: new Date().toISOString()
+        }
+        
+        const paymentResult = await clientDb.createPayment(paymentData)
+        if (paymentResult.error) {
+          console.error('Error creating payment record for meter reading:', paymentResult.error)
+        }
       }
       
       // Reload data to show updated status
@@ -1864,7 +1915,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
           {isGasManagement && billsSubTab === "paid" && "Paid Gas Bills"}
           {isGasManagement && billsSubTab === "unpaid" && "Unpaid Gas Bills"}
           <div className="flex items-center gap-2">
-            {(isElectricityManagement || isGasManagement) && (
+            {(isElectricityManagement || isGasManagement) && !isMobile && (
               <Button
                 onClick={() => {
                   // Switch to bill generation mode
