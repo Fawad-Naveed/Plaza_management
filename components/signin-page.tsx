@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Building2, Shield, User } from "lucide-react"
+import { Loader2, Building2, Shield, User, Eye, EyeOff } from "lucide-react"
 import { login, setAuthState, type LoginCredentials } from "@/lib/auth"
 
 export function SigninPage() {
@@ -19,6 +19,7 @@ export function SigninPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [showPassword, setShowPassword] = useState(false)
 
   // Validation
   const validateField = (name: string, value: string) => {
@@ -174,16 +175,30 @@ export function SigninPage() {
                 <Label htmlFor="password" className="text-sm font-medium">
                   Password <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => handleFieldChange('password', e.target.value)}
-                  onBlur={(e) => handleFieldBlur('password', e.target.value)}
-                  placeholder="Enter your password"
-                  className={fieldErrors.password ? 'border-red-500' : ''}
-                  disabled={loading}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) => handleFieldChange('password', e.target.value)}
+                    onBlur={(e) => handleFieldBlur('password', e.target.value)}
+                    placeholder="Enter your password"
+                    className={`pr-10 ${fieldErrors.password ? 'border-red-500' : ''}`}
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                    disabled={loading}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
                 {fieldErrors.password && (
                   <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>
                 )}

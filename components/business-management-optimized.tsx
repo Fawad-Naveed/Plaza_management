@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Search, Plus, Loader2, Building, Phone, Mail, Settings, Trash2 } from "lucide-react"
+import { Search, Plus, Loader2, Building, Phone, Mail, Settings, Trash2, Eye, EyeOff } from "lucide-react"
 import { getOptimizedSupabaseClient } from "@/lib/supabase-optimized"
 import { useRenderPerformance, useQueryPerformance } from "@/hooks/use-performance"
 import { hashPassword, isUsernameAvailable } from "@/lib/auth"
@@ -75,6 +75,7 @@ export function BusinessManagementOptimized() {
   // Form validation state
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({})
+  const [showPassword, setShowPassword] = useState(false)
 
   // Client
   const client = getOptimizedSupabaseClient()
@@ -348,6 +349,7 @@ export function BusinessManagementOptimized() {
       })
       setFieldErrors({})
       setTouchedFields({})
+      setShowPassword(false)
       
       setShowAddDialog(false)
       client.clearCache() // Clear cache to ensure consistency
@@ -427,6 +429,7 @@ export function BusinessManagementOptimized() {
     setFieldErrors({})
     setTouchedFields({})
     setError(null)
+    setShowPassword(false)
     // Reset form
     setNewBusiness({
       name: "",
@@ -691,19 +694,32 @@ export function BusinessManagementOptimized() {
                     <Label htmlFor="password" className="text-sm font-medium">
                       Password <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={newBusiness.password}
-                      onChange={(e) => handleFieldChange('password', e.target.value)}
-                      onBlur={(e) => handleFieldBlur('password', e.target.value)}
-                      placeholder="Enter password for business login"
-                      className={`${
-                        fieldErrors.password && touchedFields.password 
-                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-                          : ''
-                      }`}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        value={newBusiness.password}
+                        onChange={(e) => handleFieldChange('password', e.target.value)}
+                        onBlur={(e) => handleFieldBlur('password', e.target.value)}
+                        placeholder="Enter password for business login"
+                        className={`pr-8 ${
+                          fieldErrors.password && touchedFields.password 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                            : ''
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                     {fieldErrors.password && touchedFields.password && (
                       <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>
                     )}

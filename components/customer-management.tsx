@@ -26,6 +26,8 @@ import {
   X,
   Loader2,
   Save,
+  Eye,
+  EyeOff,
 } from "lucide-react"
 import { clientDb, type Business, type ContactPerson, type Floor, type Advance, type PartialPayment, deleteAdvance, deleteFloor, checkAdvanceExists, createPartialPayment, updatePartialPayment, deletePartialPayment, checkPartialPaymentExists } from "@/lib/database"
 import { hashPassword, isUsernameAvailable } from "@/lib/auth"
@@ -180,6 +182,17 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
     electricity_consumer_number: string
     gas_consumer_number: string
   } | null>(null)
+  
+  // Credential editing state
+  const [editingCredentials, setEditingCredentials] = useState<string | null>(null)
+  const [credentialData, setCredentialData] = useState<{
+    username: string
+    password: string
+    confirmPassword: string
+  }>({ username: "", password: "", confirmPassword: "" })
+  const [credentialErrors, setCredentialErrors] = useState<Record<string, string>>({})
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [newFloor, setNewFloor] = useState({
     floor_number: 0,
     floor_name: "",
@@ -714,6 +727,95 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
     } catch (err) {
       console.error("[v0] Error updating business details:", err)
       setError(err instanceof Error ? err.message : "Failed to update business details")
+    }
+  }
+  
+  // Credential editing functions
+  const startEditingCredentials = (business: Business) => {
+    setEditingCredentials(business.id)
+    setCredentialData({
+      username: business.username || "",
+      password: "",
+      confirmPassword: ""
+    })
+    setCredentialErrors({})
+    setShowPassword(false)
+    setShowConfirmPassword(false)
+  }
+  
+  const cancelEditingCredentials = () => {
+    setEditingCredentials(null)
+    setCredentialData({ username: "", password: "", confirmPassword: "" })
+    setCredentialErrors({})
+    setShowPassword(false)
+    setShowConfirmPassword(false)
+  }
+  
+  const validateCredentials = () => {
+    const errors: Record<string, string> = {}
+    
+    // Username validation
+    if (!credentialData.username.trim()) {
+      errors.username = "Username is required"
+    } else if (credentialData.username.trim().length < 3) {
+      errors.username = "Username must be at least 3 characters"
+    } else if (!/^[a-zA-Z0-9_]+$/.test(credentialData.username)) {
+      errors.username = "Username can only contain letters, numbers, and underscores"
+    }
+    
+    // Password validation (only if provided)
+    if (credentialData.password.trim()) {
+      if (credentialData.password.length < 6) {
+        errors.password = "Password must be at least 6 characters"
+      }
+      
+      if (credentialData.password !== credentialData.confirmPassword) {
+        errors.confirmPassword = "Passwords do not match"
+      }
+    }
+    
+    setCredentialErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+  
+  const saveCredentials = async (businessId: string) => {
+    if (!validateCredentials()) {
+      return
+    }
+    
+    try {
+      // Check if username is available (exclude current business)
+      const currentBusiness = businesses.find(b => b.id === businessId)
+      if (currentBusiness && credentialData.username !== currentBusiness.username) {
+        const usernameAvailable = await isUsernameAvailable(credentialData.username)
+        if (!usernameAvailable) {
+          setCredentialErrors({ username: "Username already exists" })
+          return
+        }
+      }
+      
+      const updateData: { username: string; password_hash?: string } = {
+        username: credentialData.username
+      }
+      
+      // Only update password if provided
+      if (credentialData.password.trim()) {
+        const hashedPassword = await hashPassword(credentialData.password)
+        updateData.password_hash = hashedPassword
+      }
+      
+      const { error } = await clientDb.updateBusiness(businessId, updateData)
+      if (error) throw error
+      
+      await loadCustomerData()
+      setEditingCredentials(null)
+      setCredentialData({ username: "", password: "", confirmPassword: "" })
+      setCredentialErrors({})
+      setShowPassword(false)
+      setShowConfirmPassword(false)
+    } catch (err) {
+      console.error("[v0] Error updating credentials:", err)
+      setError(err instanceof Error ? err.message : "Failed to update credentials")
     }
   }
 
@@ -1409,6 +1511,158 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
                           </div>
                         </div>
                       )}
+                      
+                      {/* Login Credentials Section for Mobile */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-base">Login Credentials</h4>
+                          {editingCredentials === business.id ? (
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => saveCredentials(business.id)}
+                                className="text-green-600 hover:text-green-700 text-xs px-2"
+                              >
+                                <Save className="h-3 w-3 mr-1" />
+                                Save
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={cancelEditingCredentials}
+                                className="text-gray-600 hover:text-gray-700 text-xs px-2"
+                              >
+                                <X className="h-3 w-3 mr-1" />
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => startEditingCredentials(business)}
+                              className="text-blue-600 hover:text-blue-700 text-xs px-2"
+                            >
+                              <Edit className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                          )}
+                        </div>
+                        
+                        {editingCredentials === business.id ? (
+                          // Mobile Credential Edit Mode
+                          <div className="space-y-3">
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Username</Label>
+                              <Input
+                                value={credentialData.username}
+                                onChange={(e) => {
+                                  setCredentialData({ ...credentialData, username: e.target.value })
+                                  if (credentialErrors.username) {
+                                    setCredentialErrors({ ...credentialErrors, username: "" })
+                                  }
+                                }}
+                                className={`h-10 text-base ${
+                                  credentialErrors.username ? 'border-red-500' : ''
+                                }`}
+                                placeholder="Enter username"
+                              />
+                              {credentialErrors.username && (
+                                <p className="text-red-500 text-xs mt-1">{credentialErrors.username}</p>
+                              )}
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">New Password (optional)</Label>
+                              <div className="relative">
+                                <Input
+                                  type={showPassword ? "text" : "password"}
+                                  value={credentialData.password}
+                                  onChange={(e) => {
+                                    setCredentialData({ ...credentialData, password: e.target.value })
+                                    if (credentialErrors.password) {
+                                      setCredentialErrors({ ...credentialErrors, password: "" })
+                                    }
+                                  }}
+                                  className={`h-10 text-base pr-10 ${
+                                    credentialErrors.password ? 'border-red-500' : ''
+                                  }`}
+                                  placeholder="Leave empty to keep current"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                                >
+                                  {showPassword ? (
+                                    <EyeOff className="h-5 w-5" />
+                                  ) : (
+                                    <Eye className="h-5 w-5" />
+                                  )}
+                                </button>
+                              </div>
+                              {credentialErrors.password && (
+                                <p className="text-red-500 text-xs mt-1">{credentialErrors.password}</p>
+                              )}
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Confirm Password</Label>
+                              <div className="relative">
+                                <Input
+                                  type={showConfirmPassword ? "text" : "password"}
+                                  value={credentialData.confirmPassword}
+                                  onChange={(e) => {
+                                    setCredentialData({ ...credentialData, confirmPassword: e.target.value })
+                                    if (credentialErrors.confirmPassword) {
+                                      setCredentialErrors({ ...credentialErrors, confirmPassword: "" })
+                                    }
+                                  }}
+                                  className={`h-10 text-base pr-10 ${
+                                    credentialErrors.confirmPassword ? 'border-red-500' : ''
+                                  }`}
+                                  placeholder="Confirm new password"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                                >
+                                  {showConfirmPassword ? (
+                                    <EyeOff className="h-5 w-5" />
+                                  ) : (
+                                    <Eye className="h-5 w-5" />
+                                  )}
+                                </button>
+                              </div>
+                              {credentialErrors.confirmPassword && (
+                                <p className="text-red-500 text-xs mt-1">{credentialErrors.confirmPassword}</p>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                              Leave password fields empty to keep the current password unchanged.
+                            </p>
+                          </div>
+                        ) : (
+                          // Mobile Credential View Mode
+                          <div className="bg-gray-50 p-3 rounded-lg space-y-2">
+                            <div className="text-sm">
+                              <span className="font-medium text-gray-700">Username:</span>
+                              <span className="ml-2">{business.username || "Not set"}</span>
+                            </div>
+                            <div className="text-sm">
+                              <span className="font-medium text-gray-700">Password:</span>
+                              <span className="ml-2">
+                                {business.password_hash ? "••••••••" : "Not set"}
+                              </span>
+                            </div>
+                            {(!business.username || !business.password_hash) && (
+                              <div className="text-xs text-amber-700 bg-amber-100 p-2 rounded mt-2">
+                                ⚠️ Login credentials not set. This business cannot log in.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1729,6 +1983,160 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
                               </div>
                             ))}
                           </div>
+                        </div>
+                        
+                        {/* Login Credentials Section */}
+                        <div className="border-t border-gray-200 pt-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-semibold text-sm">Login Credentials</h4>
+                            {editingCredentials === business.id ? (
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => saveCredentials(business.id)}
+                                  className="text-green-600 hover:text-green-700"
+                                >
+                                  <Save className="h-4 w-4 mr-1" />
+                                  Save
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={cancelEditingCredentials}
+                                  className="text-gray-600 hover:text-gray-700"
+                                >
+                                  <X className="h-4 w-4 mr-1" />
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => startEditingCredentials(business)}
+                                className="text-blue-600 hover:text-blue-700"
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit Credentials
+                              </Button>
+                            )}
+                          </div>
+                          
+                          {editingCredentials === business.id ? (
+                            // Credential Edit Mode
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                  <Label className="text-xs text-gray-600">Username</Label>
+                                  <Input
+                                    value={credentialData.username}
+                                    onChange={(e) => {
+                                      setCredentialData({ ...credentialData, username: e.target.value })
+                                      if (credentialErrors.username) {
+                                        setCredentialErrors({ ...credentialErrors, username: "" })
+                                      }
+                                    }}
+                                    className={`h-8 text-sm ${
+                                      credentialErrors.username ? 'border-red-500' : ''
+                                    }`}
+                                    placeholder="Enter username"
+                                  />
+                                  {credentialErrors.username && (
+                                    <p className="text-red-500 text-xs mt-1">{credentialErrors.username}</p>
+                                  )}
+                                </div>
+                                <div>
+                                  <Label className="text-xs text-gray-600">New Password (optional)</Label>
+                                  <div className="relative">
+                                    <Input
+                                      type={showPassword ? "text" : "password"}
+                                      value={credentialData.password}
+                                      onChange={(e) => {
+                                        setCredentialData({ ...credentialData, password: e.target.value })
+                                        if (credentialErrors.password) {
+                                          setCredentialErrors({ ...credentialErrors, password: "" })
+                                        }
+                                      }}
+                                      className={`h-8 text-sm pr-8 ${
+                                        credentialErrors.password ? 'border-red-500' : ''
+                                      }`}
+                                      placeholder="Leave empty to keep current"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowPassword(!showPassword)}
+                                      className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
+                                    >
+                                      {showPassword ? (
+                                        <EyeOff className="h-4 w-4" />
+                                      ) : (
+                                        <Eye className="h-4 w-4" />
+                                      )}
+                                    </button>
+                                  </div>
+                                  {credentialErrors.password && (
+                                    <p className="text-red-500 text-xs mt-1">{credentialErrors.password}</p>
+                                  )}
+                                </div>
+                                <div>
+                                  <Label className="text-xs text-gray-600">Confirm Password</Label>
+                                  <div className="relative">
+                                    <Input
+                                      type={showConfirmPassword ? "text" : "password"}
+                                      value={credentialData.confirmPassword}
+                                      onChange={(e) => {
+                                        setCredentialData({ ...credentialData, confirmPassword: e.target.value })
+                                        if (credentialErrors.confirmPassword) {
+                                          setCredentialErrors({ ...credentialErrors, confirmPassword: "" })
+                                        }
+                                      }}
+                                      className={`h-8 text-sm pr-8 ${
+                                        credentialErrors.confirmPassword ? 'border-red-500' : ''
+                                      }`}
+                                      placeholder="Confirm new password"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                      className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
+                                    >
+                                      {showConfirmPassword ? (
+                                        <EyeOff className="h-4 w-4" />
+                                      ) : (
+                                        <Eye className="h-4 w-4" />
+                                      )}
+                                    </button>
+                                  </div>
+                                  {credentialErrors.confirmPassword && (
+                                    <p className="text-red-500 text-xs mt-1">{credentialErrors.confirmPassword}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-xs text-gray-500">
+                                Leave password fields empty to keep the current password unchanged.
+                              </p>
+                            </div>
+                          ) : (
+                            // Credential View Mode
+                            <div className="space-y-2 text-sm">
+                              <div>
+                                <span className="font-medium text-gray-600">Username: </span>
+                                <span className="font-medium">{business.username || "Not set"}</span>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-600">Password: </span>
+                                <span className="font-medium">
+                                  {business.password_hash ? "••••••••" : "Not set"}
+                                </span>
+                              </div>
+                              {(!business.username || !business.password_hash) && (
+                                <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                                  ⚠️ Login credentials are not set. This business cannot log in to the system.
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </TableCell>
