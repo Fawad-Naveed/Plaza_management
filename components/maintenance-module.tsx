@@ -85,7 +85,7 @@ interface MaintenanceBill {
   dueDate: string
   month: string
   year: string
-  status: "pending" | "paid" | "overdue" | "cancelled" | "partial"
+  status: "pending" | "paid" | "overdue" | "cancelled" | "partial" | "waveoff"
   category: "cleaning" | "repair" | "general" | "emergency"
 }
 
@@ -222,7 +222,12 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
           month: new Date(bill.bill_date).toLocaleDateString("en-US", { month: "long" }),
           year: new Date(bill.bill_date).getFullYear().toString(),
           status:
-            bill.status === "paid" ? "paid" : remainingAmount === 0 ? "paid" : paidAmount > 0 ? "partial" : "pending",
+            bill.status === "waveoff" ? "waveoff" :
+            bill.status === "paid" ? "paid" : 
+            bill.status === "overdue" ? "overdue" :
+            bill.status === "cancelled" ? "cancelled" :
+            remainingAmount === 0 ? "paid" : 
+            paidAmount > 0 ? "partial" : "pending",
           category: bill.category,
         } as MaintenanceBill
       })
@@ -542,9 +547,12 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
     }
   }
 
-  const handleStatusChange = async (billId: string, newStatus: "pending" | "paid" | "overdue" | "cancelled") => {
+  const handleStatusChange = async (billId: string, newStatus: "pending" | "paid" | "overdue" | "cancelled" | "waveoff") => {
     try {
-      await updateMaintenanceBill(billId, { status: newStatus })
+      console.log(`Attempting to update bill ${billId} to status: ${newStatus}`)
+      
+      const updateResult = await updateMaintenanceBill(billId, { status: newStatus })
+      console.log('Update result:', updateResult)
       
       // If marking as paid, create a maintenance payment record with admin tracking
       if (newStatus === "paid") {
@@ -573,11 +581,13 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
         }
       }
       
+      console.log('Reloading data after status update...')
       await loadAllData()
       setError(null)
+      console.log('Status update completed successfully')
     } catch (error) {
       console.error("Error updating bill status:", error)
-      setError("Failed to update bill status. Please try again.")
+      setError(`Failed to update bill status: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`)
     }
   }
 
@@ -676,7 +686,8 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
 
   // Filter bills by status
   const paidBills = filteredBills.filter(bill => bill.status === "paid")
-  const unpaidBills = filteredBills.filter(bill => bill.status !== "paid")
+  const unpaidBills = filteredBills.filter(bill => bill.status !== "paid" && bill.status !== "waveoff")
+  const waveoffBills = filteredBills.filter(bill => bill.status === "waveoff")
 
   // Get bills based on current sub-tab or activeSubSection
   const getCurrentBills = (subTab?: string) => {
@@ -686,6 +697,8 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
         return paidBills
       case "unpaid":
         return unpaidBills
+      case "waveoff":
+        return waveoffBills
       default:
         return filteredBills
     }
@@ -695,10 +708,11 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
     <div className="space-y-6">
       {/* Bills Sub-tabs */}
       <Tabs value={billsSubTab} onValueChange={setBillsSubTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="all">All Bills ({filteredBills.length})</TabsTrigger>
           <TabsTrigger value="unpaid">Unpaid ({unpaidBills.length})</TabsTrigger>
           <TabsTrigger value="paid">Paid ({paidBills.length})</TabsTrigger>
+          <TabsTrigger value="waveoff">Wave off ({waveoffBills.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="space-y-6">
@@ -708,6 +722,9 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
           {renderBillsContent()}
         </TabsContent>
         <TabsContent value="paid" className="space-y-6">
+          {renderBillsContent()}
+        </TabsContent>
+        <TabsContent value="waveoff" className="space-y-6">
           {renderBillsContent()}
         </TabsContent>
       </Tabs>
@@ -839,12 +856,19 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="p-4">
             <div className="flex items-center gap-2">
-              <AlertCircle className={`h-5 w-5 ${billsSubTab === "unpaid" ? "text-red-500" : "text-green-500"}`} />
+              <AlertCircle className={`h-5 w-5 ${
+                billsSubTab === "unpaid" ? "text-red-500" : 
+                billsSubTab === "waveoff" ? "text-blue-500" : "text-green-500"
+              }`} />
               <div>
                 <div className="text-sm text-gray-600">
-                  {billsSubTab === "unpaid" ? "Unpaid Bills" : "Paid Bills"}
+                  {billsSubTab === "unpaid" ? "Unpaid Bills" : 
+                   billsSubTab === "waveoff" ? "Waved Off Bills" : "Paid Bills"}
                 </div>
-                <div className={`text-xl font-bold ${billsSubTab === "unpaid" ? "text-red-600" : "text-green-600"}`}>
+                <div className={`text-xl font-bold ${
+                  billsSubTab === "unpaid" ? "text-red-600" : 
+                  billsSubTab === "waveoff" ? "text-blue-600" : "text-green-600"
+                }`}>
                   {getCurrentBills().length}
                 </div>
               </div>
@@ -855,11 +879,13 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
               <DollarSign className="h-5 w-5 text-blue-500" />
               <div>
                 <div className="text-sm text-gray-600">
-                  {billsSubTab === "unpaid" ? "Total Outstanding" : "Total Collected"}
+                  {billsSubTab === "unpaid" ? "Total Outstanding" : 
+                   billsSubTab === "waveoff" ? "Total Waved Off" : "Total Collected"}
                 </div>
                 <div className="text-xl font-bold text-blue-600">
                   PKR {getCurrentBills().reduce((sum, bill) =>
-                    sum + (billsSubTab === "unpaid" ? bill.remainingAmount : bill.paidAmount), 0
+                    sum + (billsSubTab === "unpaid" ? bill.remainingAmount : 
+                           billsSubTab === "waveoff" ? bill.amount : bill.paidAmount), 0
                   ).toFixed(2)}
                 </div>
               </div>
@@ -889,6 +915,7 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
             {billsSubTab === "all" && "All Maintenance Bills"}
             {billsSubTab === "paid" && "Paid Maintenance Bills"}
             {billsSubTab === "unpaid" && "Unpaid Maintenance Bills"}
+            {billsSubTab === "waveoff" && "Waved Off Maintenance Bills"}
           </CardTitle>
           <div className="flex items-center gap-2">
             <Search className="h-4 w-4 text-gray-500" />
@@ -937,8 +964,8 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 p-2">
-                          <Badge variant={bill.status === "paid" ? "default" : "secondary"} className="cursor-pointer">
-                            {bill.status}
+                          <Badge variant={bill.status === "paid" ? "default" : bill.status === "waveoff" ? "outline" : "secondary"} className="cursor-pointer">
+                            {bill.status === "waveoff" ? "Waved Off" : bill.status}
                           </Badge>
                         </Button>
                       </DropdownMenuTrigger>
@@ -968,6 +995,15 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-green-500"></div>
                             Paid
+                          </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleStatusChange(bill.id, "waveoff")}
+                          className={bill.status === "waveoff" ? "bg-blue-50" : ""}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                            Waved Off
                           </div>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -1301,8 +1337,8 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 p-2">
-                          <Badge variant={bill.status === "paid" ? "default" : "secondary"} className="cursor-pointer">
-                            {bill.status}
+                          <Badge variant={bill.status === "paid" ? "default" : bill.status === "waveoff" ? "outline" : "secondary"} className="cursor-pointer">
+                            {bill.status === "waveoff" ? "Waved Off" : bill.status}
                           </Badge>
                         </Button>
                       </DropdownMenuTrigger>
@@ -1332,6 +1368,15 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-green-500"></div>
                             Paid
+                          </div>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleStatusChange(bill.id, "waveoff")}
+                          className={bill.status === "waveoff" ? "bg-blue-50" : ""}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                            Waved Off
                           </div>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -1968,6 +2013,7 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
   const getCurrentBillsSubTab = () => {
     if (activeSubSection === "maintenance-unpaid") return "unpaid"
     if (activeSubSection === "maintenance-paid") return "paid"
+    if (activeSubSection === "maintenance-waveoff") return "waveoff"
     return billsSubTab
   }
 
@@ -1982,6 +2028,8 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
         return "Unpaid Maintenance Bills"
       case "maintenance-paid":
         return "Paid Maintenance Bills"
+      case "maintenance-waveoff":
+        return "Waved Off Maintenance Bills"
       case "maintenance-advance":
         return "Maintenance Advances"
       case "maintenance-instalments":
@@ -2006,6 +2054,8 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
         return renderBillsTabWithSubTab("unpaid")
       case "maintenance-paid":
         return renderBillsTabWithSubTab("paid")
+      case "maintenance-waveoff":
+        return renderBillsTabWithSubTab("waveoff")
       default:
         return renderBillsTab()
     }

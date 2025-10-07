@@ -56,6 +56,10 @@ const AdminQueries = dynamic(() => import("@/components/admin-queries").then(m =
   ssr: false,
   loading: () => <div className="p-6">Loading queries...</div>,
 })
+const WaveoffModule = dynamic(() => import("@/components/waveoff-module").then(m => m.WaveoffModule), {
+  ssr: false,
+  loading: () => <div className="p-6">Loading waved off bills...</div>,
+})
 
 // Note: Using original CustomerManagement component with added validation
 
@@ -119,6 +123,7 @@ export const navigationItems: NavigationItem[] = [
       { id: "maintenance-bill", label: "Generate Bills" },
       { id: "maintenance-unpaid", label: "Unpaid Bills" },
       { id: "maintenance-paid", label: "Paid Bills" },
+      { id: "maintenance-waveoff", label: "Wave off" },
       // { id: "maintenance-advance", label: "Advances" },
       // { id: "maintenance-instalments", label: "Partial Payments" },
     ],
@@ -135,6 +140,7 @@ export const navigationItems: NavigationItem[] = [
   },
   // { id: "terms-conditions", label: "Terms & Conditions" },
   { id: "queries", label: "Queries" },
+  { id: "waveoff", label: "Wave off" },
   { id: "tc", label: "Term and Condition" },
   { id: "settings", label: "Settings" },
 ]
@@ -178,6 +184,7 @@ export function PlazaManagementApp() {
       // case "maintenance-instalments": // Now Partial Payments
       case "maintenance-unpaid":
       case "maintenance-paid":
+      case "maintenance-waveoff":
         return <MaintenanceModule activeSubSection={activeSection} />
       case "reports-rent":
       case "reports-maintenance":
@@ -188,6 +195,8 @@ export function PlazaManagementApp() {
         return <TermsConditions />
       case "queries":
         return <AdminQueries />
+      case "waveoff":
+        return <WaveoffModule />
       case "tc":
         return <TCComponent />
       case "settings":

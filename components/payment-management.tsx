@@ -121,7 +121,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
   const filteredUnpaidBills = filteredBills.filter(bill => bill.status === "pending" || bill.status === "overdue")
   const filteredPaidBills = filteredBills.filter(bill => bill.status === "paid")
 
-  const updateBillStatus = async (billId: string, newStatus: "pending" | "paid") => {
+  const updateBillStatus = async (billId: string, newStatus: "pending" | "paid" | "waveoff") => {
     try {
       await updateBill(billId, { status: newStatus })
       // Reload data to reflect changes
@@ -807,25 +807,27 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
                   <Badge
                     variant={
                       bill.status === "overdue" ? "destructive" :
+                        bill.status === "waveoff" ? "outline" :
                         bill.paidAmount > 0 && bill.remainingAmount > 0 ? "secondary" :
                           "outline"
                     }
                   >
-                    {bill.paidAmount > 0 && bill.remainingAmount > 0 ? "Partial" : bill.status}
+                    {bill.paidAmount > 0 && bill.remainingAmount > 0 ? "Partial" : bill.status === "waveoff" ? "Waved Off" : bill.status}
                     {bill.daysOverdue && bill.daysOverdue > 0 && ` (${bill.daysOverdue}d)`}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   <Select
                     value={bill.status}
-                    onValueChange={(value: "pending" | "paid") => updateBillStatus(bill.id, value)}
+                    onValueChange={(value: "pending" | "paid" | "waveoff") => updateBillStatus(bill.id, value)}
                   >
-                    <SelectTrigger className="w-32">
+                    <SelectTrigger className="w-36">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="pending">Unpaid</SelectItem>
                       <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="waveoff">Waved Off</SelectItem>
                     </SelectContent>
                   </Select>
                 </TableCell>
@@ -930,21 +932,22 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="default">
-                    {bill.status}
+                  <Badge variant={bill.status === "waveoff" ? "outline" : "default"}>
+                    {bill.status === "waveoff" ? "Waved Off" : bill.status}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   <Select
                     value={bill.status}
-                    onValueChange={(value: "pending" | "paid") => updateBillStatus(bill.id, value)}
+                    onValueChange={(value: "pending" | "paid" | "waveoff") => updateBillStatus(bill.id, value)}
                   >
-                    <SelectTrigger className="w-32">
+                    <SelectTrigger className="w-36">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="pending">Unpaid</SelectItem>
                       <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="waveoff">Waved Off</SelectItem>
                     </SelectContent>
                   </Select>
                 </TableCell>

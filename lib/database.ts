@@ -58,7 +58,7 @@ export interface Bill {
   water_charges: number
   other_charges: number
   total_amount: number
-  status: "pending" | "paid" | "overdue" | "cancelled"
+  status: "pending" | "paid" | "overdue" | "cancelled" | "waveoff"
   terms_conditions_ids?: string[]
   terms_conditions_text?: string
   created_at: string
@@ -152,7 +152,7 @@ export interface MeterReading {
   units_consumed: number
   rate_per_unit: number
   amount: number
-  payment_status?: "pending" | "paid" | "overdue"
+  payment_status?: "pending" | "paid" | "overdue" | "waveoff"
   bill_number?: string
   created_at: string
 }
@@ -166,7 +166,7 @@ export interface MaintenanceBill {
   description: string
   category: "cleaning" | "repair" | "general" | "emergency"
   amount: number
-  status: "pending" | "paid" | "overdue" | "cancelled"
+  status: "pending" | "paid" | "overdue" | "cancelled" | "waveoff"
   created_at: string
   updated_at: string
 }
@@ -1384,7 +1384,56 @@ export async function getRevenueByMonth() {
   }
 }
 
-export async function getRevenueStats() {
+export async function getWavedOffDebt(): Promise<number> {
+  try {
+    const supabase = createBrowserClient()
+    
+    // Get waved off amounts from regular bills (rent, electricity, gas)
+    const { data: wavedOffBills, error: billsError } = await supabase
+      .from('bills')
+      .select('total_amount')
+      .eq('status', 'waveoff')
+
+    if (billsError) {
+      console.error('Error fetching waved off bills:', billsError)
+      throw billsError
+    }
+
+    // Get waved off amounts from maintenance bills
+    const { data: wavedOffMaintenanceBills, error: maintenanceError } = await supabase
+      .from('maintenance_bills')
+      .select('amount')
+      .eq('status', 'waveoff')
+
+    if (maintenanceError) {
+      console.error('Error fetching waved off maintenance bills:', maintenanceError)
+      throw maintenanceError
+    }
+
+    // Get waved off amounts from meter readings
+    const { data: wavedOffMeterReadings, error: meterError } = await supabase
+      .from('meter_readings')
+      .select('amount')
+      .eq('payment_status', 'waveoff')
+
+    if (meterError) {
+      console.error('Error fetching waved off meter readings:', meterError)
+      throw meterError
+    }
+
+    // Calculate total waved off debt
+    const billsTotal = wavedOffBills?.reduce((sum, bill) => sum + bill.total_amount, 0) || 0
+    const maintenanceTotal = wavedOffMaintenanceBills?.reduce((sum, bill) => sum + bill.amount, 0) || 0
+    const meterReadingsTotal = wavedOffMeterReadings?.reduce((sum, reading) => sum + reading.amount, 0) || 0
+
+    return billsTotal + maintenanceTotal + meterReadingsTotal
+  } catch (error) {
+    console.error('Error calculating waved off debt:', error)
+    return 0
+  }
+}
+
+export async function getRevenueStats(): Promise<RevenueStats> {
   try {
     // Get all PAID bills only for revenue calculation
     const billsResult = await clientDb.getBills()

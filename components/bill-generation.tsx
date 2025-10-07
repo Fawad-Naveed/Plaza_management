@@ -1127,7 +1127,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
     setViewingBill(bill)
   }
 
-  const handleStatusChange = async (billId: string, newStatus: "pending" | "paid") => {
+  const handleStatusChange = async (billId: string, newStatus: "pending" | "paid" | "waveoff") => {
     try {
       setLoading(true)
       
@@ -1197,7 +1197,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
   }
 
   // Handle meter reading status change with schema refresh and retry logic
-  const handleMeterReadingStatusChange = async (readingId: string, newStatus: "pending" | "paid") => {
+  const handleMeterReadingStatusChange = async (readingId: string, newStatus: "pending" | "paid" | "waveoff") => {
     try {
       console.log("Starting meter reading status update for:", readingId, "to:", newStatus)
       
@@ -2003,12 +2003,12 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                 <TableCell>
                   <Select
                     value={bill.status}
-                    onValueChange={(value: "pending" | "paid") => handleStatusChange(bill.id, value)}
+                    onValueChange={(value: "pending" | "paid" | "waveoff") => handleStatusChange(bill.id, value)}
                   >
-                    <SelectTrigger className="w-28">
+                    <SelectTrigger className="w-32">
                       <SelectValue>
-                        <Badge variant={bill.status === "paid" ? "default" : "secondary"}>
-                          {bill.status === "pending" ? "Unpaid" : "Paid"}
+                        <Badge variant={bill.status === "paid" ? "default" : bill.status === "waveoff" ? "outline" : "secondary"}>
+                          {bill.status === "pending" ? "Unpaid" : bill.status === "paid" ? "Paid" : bill.status === "waveoff" ? "Waved Off" : bill.status}
                         </Badge>
                       </SelectValue>
                     </SelectTrigger>
@@ -2023,6 +2023,12 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-green-500"></div>
                           <span>Paid</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="waveoff">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                          <span>Waved Off</span>
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -2117,12 +2123,12 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                   <TableCell>
                     <Select
                       value={reading.payment_status || "pending"}
-                      onValueChange={(value: "pending" | "paid") => handleMeterReadingStatusChange(reading.id, value)}
+                      onValueChange={(value: "pending" | "paid" | "waveoff") => handleMeterReadingStatusChange(reading.id, value)}
                     >
-                      <SelectTrigger className="w-28">
+                      <SelectTrigger className="w-32">
                         <SelectValue>
-                          <Badge variant={(reading.payment_status === "paid") ? "default" : "secondary"}>
-                            {(reading.payment_status === "pending" || !reading.payment_status) ? "Unpaid" : "Paid"}
+                          <Badge variant={(reading.payment_status === "paid") ? "default" : (reading.payment_status === "waveoff") ? "outline" : "secondary"}>
+                            {(reading.payment_status === "pending" || !reading.payment_status) ? "Unpaid" : reading.payment_status === "paid" ? "Paid" : reading.payment_status === "waveoff" ? "Waved Off" : reading.payment_status}
                           </Badge>
                         </SelectValue>
                       </SelectTrigger>
@@ -2137,6 +2143,12 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-green-500"></div>
                             <span>Paid</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="waveoff">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                            <span>Waved Off</span>
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -2212,12 +2224,12 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                   <TableCell>
                     <Select
                       value={reading.payment_status || "pending"}
-                      onValueChange={(value: "pending" | "paid") => handleMeterReadingStatusChange(reading.id, value)}
+                      onValueChange={(value: "pending" | "paid" | "waveoff") => handleMeterReadingStatusChange(reading.id, value)}
                     >
-                      <SelectTrigger className="w-28">
+                      <SelectTrigger className="w-32">
                         <SelectValue>
-                          <Badge variant={(reading.payment_status === "paid") ? "default" : "secondary"}>
-                            {(reading.payment_status === "pending" || !reading.payment_status) ? "Unpaid" : "Paid"}
+                          <Badge variant={(reading.payment_status === "paid") ? "default" : (reading.payment_status === "waveoff") ? "outline" : "secondary"}>
+                            {(reading.payment_status === "pending" || !reading.payment_status) ? "Unpaid" : reading.payment_status === "paid" ? "Paid" : reading.payment_status === "waveoff" ? "Waved Off" : reading.payment_status}
                           </Badge>
                         </SelectValue>
                       </SelectTrigger>
@@ -2232,6 +2244,12 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-green-500"></div>
                             <span>Paid</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="waveoff">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                            <span>Waved Off</span>
                           </div>
                         </SelectItem>
                       </SelectContent>

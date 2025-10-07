@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, TrendingUp, DollarSign, FileText, Zap, Home, Wrench, Flame } from "lucide-react"
+import { Loader2, TrendingUp, DollarSign, FileText, Zap, Home, Wrench, Flame, AlertTriangle } from "lucide-react"
 import dynamic from "next/dynamic"
-import { getRevenueByMonth, getRevenueStats } from "@/lib/database"
+import { getRevenueByMonth, getRevenueStats, getWavedOffDebt } from "@/lib/database"
 
 // Dynamically import recharts components
 const ResponsiveContainer = dynamic(() => import("recharts").then(m => m.ResponsiveContainer), { ssr: false })
@@ -65,6 +65,7 @@ interface RevenueStats {
 export function RevenueInsights() {
   const [revenueData, setRevenueData] = useState<RevenueData[]>([])
   const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null)
+  const [totalDebt, setTotalDebt] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -77,13 +78,15 @@ export function RevenueInsights() {
       setLoading(true)
       setError(null)
 
-      const [monthlyData, stats] = await Promise.all([
+      const [monthlyData, stats, debtData] = await Promise.all([
         getRevenueByMonth(),
-        getRevenueStats()
+        getRevenueStats(),
+        getWavedOffDebt()
       ])
 
       setRevenueData(monthlyData)
       setRevenueStats(stats)
+      setTotalDebt(debtData)
     } catch (err) {
       console.error("Error loading revenue data:", err)
       setError(err instanceof Error ? err.message : "Failed to load revenue data")
@@ -254,7 +257,7 @@ export function RevenueInsights() {
       </div>
 
       {/* Additional Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Gas Revenue Card */}
         <Card className="border-gray-200 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
           <CardContent className="p-6">
@@ -277,6 +280,24 @@ export function RevenueInsights() {
                     </p>
                   )}
                 </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Debt Card - Waved Off Bills */}
+        <Card className="border-gray-200 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-red-500 rounded-lg">
+                <AlertTriangle className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Debt</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {formatCurrency(totalDebt || 0)}
+                </p>
+                <p className="text-xs text-gray-500">Waved off bills total</p>
               </div>
             </div>
           </CardContent>
