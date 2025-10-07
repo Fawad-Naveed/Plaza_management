@@ -5,6 +5,7 @@ import { Menu, X, Building, Home, LogOut, HelpCircle, BarChart3 } from "lucide-r
 import { Button } from "@/components/ui/button"
 import { useMobileSidebar, usePreventScroll, useTouchGestures } from "@/hooks/use-mobile"
 import { logout, getAuthState } from "@/lib/auth"
+import { useQueryCounts } from "@/hooks/use-query-counts"
 
 interface BusinessSidebarProps {
   activeSection: string
@@ -39,6 +40,7 @@ export function BusinessSidebar({
   const [businessName, setBusinessName] = useState<string>("")
   const { isMobile } = useMobileSidebar()
   const { handleTouchStart, handleTouchMove, handleTouchEnd } = useTouchGestures()
+  const { counts } = useQueryCounts()
   
   // Prevent body scroll when mobile drawer is open
   usePreventScroll(isMobile && isMobileDrawerOpen)
@@ -68,6 +70,41 @@ export function BusinessSidebar({
     if (swipeResult?.isLeftSwipe && isMobileDrawerOpen && onMobileDrawerToggle) {
       onMobileDrawerToggle()
     }
+  }
+
+  // Render color-coded query status badges
+  const renderQueryBadges = () => {
+    if (collapsed && !isMobile) {
+      // Show only total count in collapsed mode
+      if (counts.total > 0) {
+        return (
+          <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+            {counts.total > 99 ? '99+' : counts.total}
+          </div>
+        )
+      }
+      return null
+    }
+
+    return (
+      <div className="flex items-center gap-1 ml-2">
+        {counts.open > 0 && (
+          <div className="bg-red-500 text-white text-xs rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1 font-medium shadow-sm">
+            {counts.open > 99 ? '99+' : counts.open}
+          </div>
+        )}
+        {counts.inProgress > 0 && (
+          <div className="bg-blue-500 text-white text-xs rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1 font-medium shadow-sm">
+            {counts.inProgress > 99 ? '99+' : counts.inProgress}
+          </div>
+        )}
+        {counts.resolved > 0 && (
+          <div className="bg-green-500 text-white text-xs rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1 font-medium shadow-sm">
+            {counts.resolved > 99 ? '99+' : counts.resolved}
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -136,18 +173,20 @@ export function BusinessSidebar({
                   isActive(item.id) ? "bg-gray-700 text-white" : "text-gray-300"
                 } ${
                   collapsed && !isMobile ? "px-2 py-3" : isMobile ? "px-4 py-4 touch-button" : "px-3 py-2"
-                }`}
+                } ${item.id === 'queries' && collapsed && !isMobile ? 'relative' : ''}`}
                 onClick={() => handleMobileSectionChange(item.id)}
               >
                 {(collapsed && !isMobile) ? (
-                  <div className="w-full flex justify-center">
+                  <div className="w-full flex justify-center relative">
                     <item.icon className="h-4 w-4" />
+                    {item.id === 'queries' && renderQueryBadges()}
                   </div>
                 ) : (
-                  <>
+                  <div className="w-full flex items-center">
                     <item.icon className={`${isMobile ? 'h-5 w-5 mr-3' : 'h-4 w-4 mr-3'}`} />
                     <span className={isMobile ? 'text-base' : ''}>{item.label}</span>
-                  </>
+                    {item.id === 'queries' && renderQueryBadges()}
+                  </div>
                 )}
               </Button>
             </div>
