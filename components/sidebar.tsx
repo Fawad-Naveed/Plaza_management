@@ -8,6 +8,7 @@ import { getInformation, type Information } from "@/lib/database"
 import { useMobileSidebar, usePreventScroll, useTouchGestures } from "@/hooks/use-mobile"
 import { logout } from "@/lib/auth"
 import { useQueryCounts } from "@/hooks/use-query-counts"
+import Image from "next/image"
 
 interface SidebarProps {
   navigationItems: NavigationItem[]
@@ -150,13 +151,16 @@ export function Sidebar({
                 <Home className="h-4 w-4 text-white" />
               </div>
             )}
-            {(!collapsed || isMobile) && (
-              <h1 className={`font-bold tracking-wide ${
-                isMobile ? 'text-lg' : 'text-xl'
-              }`}>
-                Plaza Management
-              </h1>
-            )}
+            <div className="flex items-center">
+              <Image
+                src="/logo.png"
+                alt="Plaza Management"
+                width={collapsed && !isMobile ? 44 : isMobile ? 150 : 130}
+                height={collapsed && !isMobile ? 44 : isMobile ? 150 : 130}
+                className="object-contain"
+                priority
+              />
+            </div>
           </div>
           <Button 
             variant="ghost" 
