@@ -103,7 +103,7 @@ export function Sidebar({
           </div>
         )}
         {counts.inProgress > 0 && (
-          <div className="bg-blue-500 text-white text-xs rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1 font-medium shadow-sm">
+          <div className="bg-black-500 text-white text-xs rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1 font-medium shadow-sm">
             {counts.inProgress > 99 ? '99+' : counts.inProgress}
           </div>
         )}
@@ -129,7 +129,7 @@ export function Sidebar({
       {/* Sidebar Container */}
       <div
         className={`
-          fixed left-0 top-0 h-full bg-gray-900 text-white z-50 flex flex-col overflow-hidden shadow-xl max-h-screen
+          fixed left-0 top-0 h-full bg-black text-white z-50 flex flex-col overflow-hidden shadow-xl max-h-screen
           transition-all duration-300 ease-in-out
           ${
             isMobile 
@@ -144,10 +144,10 @@ export function Sidebar({
         onTouchEnd={handleTouchEndWithSwipe}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800 min-h-[64px]">
+        <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-black min-h-[64px]">
           <div className="flex items-center gap-3">
             {isMobile && (
-              <div className="flex items-center justify-center w-8 h-8 bg-blue-600 rounded-lg">
+              <div className="flex items-center justify-center w-8 h-8 bg-black-600 rounded-lg">
                 <Home className="h-4 w-4 text-white" />
               </div>
             )}
@@ -277,7 +277,7 @@ export function Sidebar({
 
         {/* Business Branding */}
         {businessInfo && (
-          <div className={`border-t border-gray-700 mt-auto flex-shrink-0 bg-gray-800 ${
+          <div className={`border-t border-gray-700 mt-auto flex-shrink-0 bg-black ${
             isMobile ? 'p-4' : 'p-4'
           }`}>
             {(!collapsed || isMobile) ? (
