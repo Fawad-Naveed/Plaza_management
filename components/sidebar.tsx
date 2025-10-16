@@ -151,7 +151,7 @@ export function Sidebar({
                 <Home className="h-4 w-4 text-white" />
               </div>
             )}
-            <div className="flex items-center">
+            <div className="flex flex-col">
               <Image
                 src="/logo.png"
                 alt="Plaza Management"
@@ -160,6 +160,13 @@ export function Sidebar({
                 className="object-contain"
                 priority
               />
+              {(!collapsed || isMobile) && (
+                <h1 className={`font-bold tracking-wide text-left mt-1 ${
+                  isMobile ? 'text-sm' : 'text-sm'
+                }`}>
+                  Admin Portal
+                </h1>
+              )}
             </div>
           </div>
           <Button 
