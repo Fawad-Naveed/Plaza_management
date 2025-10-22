@@ -941,14 +941,31 @@ export function BusinessManagementOptimized() {
                               ))
                             }}
                             onBlur={async (e) => {
-                              const value = parseInt(e.target.value) || 0
+                              const total = parseInt(e.target.value) || 0
+                              const currentOccupied = Number.isFinite(floor.occupied_shops)
+                                ? floor.occupied_shops
+                                : actualOccupied
+                              const adjustedOccupied = Math.min(currentOccupied || 0, total)
+
+                              // Optimistically update local state for both
+                              setFloors(prev =>
+                                prev.map(f =>
+                                  f.id === floor.id
+                                    ? { ...f, total_shops: total, occupied_shops: adjustedOccupied }
+                                    : f
+                                )
+                              )
+
                               try {
-                                await updateFloorData(floor.id, { total_shops: value })
+                                await updateFloorData(floor.id, {
+                                  total_shops: total,
+                                  occupied_shops: adjustedOccupied,
+                                })
                               } catch (err) {
                                 // Revert on error
-                                setFloors(prev => prev.map(f => 
-                                  f.id === floor.id ? { ...f, total_shops: floor.total_shops } : f
-                                ))
+                                setFloors(prev =>
+                                  prev.map(f => (f.id === floor.id ? floor : f))
+                                )
                               }
                             }}
                             className="w-full"
@@ -964,17 +981,32 @@ export function BusinessManagementOptimized() {
                             type="number"
                             min="0"
                             max={floor.total_shops || 0}
-                            value={floor.occupied_shops || actualOccupied}
+                            value={Math.min(floor.occupied_shops || actualOccupied, floor.total_shops || 0)}
                             onChange={(e) => {
                               const value = parseInt(e.target.value) || 0
+                              const limit = floor.total_shops || 0
+                              const clamped = Math.min(value, limit)
                               setFloors(prev => prev.map(f => 
-                                f.id === floor.id ? { ...f, occupied_shops: value } : f
+                                f.id === floor.id ? { ...f, occupied_shops: clamped } : f
                               ))
+                            }}
+                            onInput={(e) => {
+                              const target = e.target as HTMLInputElement
+                              const value = parseInt(target.value) || 0
+                              const limit = floor.total_shops || 0
+                              if (value > limit) {
+                                target.value = limit.toString()
+                                setFloors(prev => prev.map(f => 
+                                  f.id === floor.id ? { ...f, occupied_shops: limit } : f
+                                ))
+                              }
                             }}
                             onBlur={async (e) => {
                               const value = parseInt(e.target.value) || 0
+                              const limit = floor.total_shops || 0
+                              const clamped = Math.min(value, limit)
                               try {
-                                await updateFloorData(floor.id, { occupied_shops: value })
+                                await updateFloorData(floor.id, { occupied_shops: clamped })
                               } catch (err) {
                                 // Revert on error
                                 setFloors(prev => prev.map(f => 
@@ -987,6 +1019,11 @@ export function BusinessManagementOptimized() {
                           <p className="text-xs text-gray-500 mt-1">
                             Actual businesses: {actualOccupied}
                           </p>
+                          {(floor.occupied_shops || actualOccupied) > (floor.total_shops || 0) && (
+                            <p className="text-xs text-red-500 mt-1">
+                              ⚠️ Occupied shops cannot exceed total shops ({floor.total_shops || 0})
+                            </p>
+                          )}
                         </div>
                       </div>
                     </CardContent>

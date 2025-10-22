@@ -2258,9 +2258,21 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
                           setFloors(updatedFloors)
                         }}
                         onBlur={async (e) => {
-                          const value = parseInt(e.target.value) || 0
+                          const total = parseInt(e.target.value) || 0
+                          const currentOccupied = floor.occupied_shops || occupiedShops
+                          const adjustedOccupied = Math.min(currentOccupied, total)
+
+                          // Update local state optimistically
+                          const updatedFloors = floors.map(f => 
+                            f.id === floor.id ? { ...f, total_shops: total, occupied_shops: adjustedOccupied } : f
+                          )
+                          setFloors(updatedFloors)
+
                           try {
-                            const { error } = await clientDb.updateFloor(floor.id, { total_shops: value })
+                            const { error } = await clientDb.updateFloor(floor.id, { 
+                              total_shops: total, 
+                              occupied_shops: adjustedOccupied 
+                            })
                             if (error) throw error
                           } catch (err) {
                             console.error('[v0] Error updating total shops:', err)
@@ -2277,18 +2289,34 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
                         type="number"
                         min="0"
                         max={floor.total_shops || 0}
-                        value={floor.occupied_shops || occupiedShops}
+                        value={Math.min(floor.occupied_shops || occupiedShops, floor.total_shops || 0)}
                         onChange={(e) => {
                           const value = parseInt(e.target.value) || 0
+                          const limit = floor.total_shops || 0
+                          const clamped = Math.min(value, limit)
                           const updatedFloors = floors.map(f => 
-                            f.id === floor.id ? { ...f, occupied_shops: value } : f
+                            f.id === floor.id ? { ...f, occupied_shops: clamped } : f
                           )
                           setFloors(updatedFloors)
                         }}
+                        onInput={(e) => {
+                          const target = e.target as HTMLInputElement
+                          const value = parseInt(target.value) || 0
+                          const limit = floor.total_shops || 0
+                          if (value > limit) {
+                            target.value = limit.toString()
+                            const updatedFloors = floors.map(f => 
+                              f.id === floor.id ? { ...f, occupied_shops: limit } : f
+                            )
+                            setFloors(updatedFloors)
+                          }
+                        }}
                         onBlur={async (e) => {
                           const value = parseInt(e.target.value) || 0
+                          const limit = floor.total_shops || 0
+                          const clamped = Math.min(value, limit)
                           try {
-                            const { error } = await clientDb.updateFloor(floor.id, { occupied_shops: value })
+                            const { error } = await clientDb.updateFloor(floor.id, { occupied_shops: clamped })
                             if (error) throw error
                           } catch (err) {
                             console.error('[v0] Error updating occupied shops:', err)
@@ -2302,6 +2330,11 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
                       <div className="text-xs text-gray-500 mt-1">
                         Actual: {occupiedShops}
                       </div>
+                      {(floor.occupied_shops || occupiedShops) > (floor.total_shops || 0) && (
+                        <div className="text-xs text-red-500 mt-1">
+                          ⚠️ Cannot exceed {floor.total_shops || 0}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>{floor.total_area_sqft.toLocaleString()} sq ft</TableCell>
                     <TableCell>

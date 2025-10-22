@@ -1953,8 +1953,8 @@ export async function approvePendingPayment(pendingPaymentId: string, adminName:
   }
   
   // Update the bill status to paid or meter reading payment status
-  // Check if this is a meter reading (notes contain [ELECTRICITY])
-  if (pendingPayment.notes?.includes('[ELECTRICITY]')) {
+  // Check if this is a meter reading (notes contain [ELECTRICITY] or [GAS])
+  if (pendingPayment.notes?.includes('[ELECTRICITY]') || pendingPayment.notes?.includes('[GAS]')) {
     // This is a meter reading payment - update meter_readings table
     const { error: meterUpdateError } = await supabase
       .from('meter_readings')

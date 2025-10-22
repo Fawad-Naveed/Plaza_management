@@ -24,6 +24,7 @@ import {
   approvePendingPayment,
   rejectPendingPayment,
   getMeterReadings,
+  getMaintenanceBills,
   type Business,
   type Bill,
   type Payment,
@@ -60,6 +61,7 @@ interface PendingPaymentWithDetails extends PendingPayment {
   billNumber?: string
   floor?: string
   businessType?: string
+  billType?: 'Electricity' | 'Gas' | 'Maintenance' | 'Regular'
 }
 
 interface PaymentManagementProps {
@@ -339,6 +341,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
       const paymentsData = await getPayments()
       const pendingPaymentsData = await getPendingPayments()
       const meterReadingsData = await getMeterReadings() // Load all meter readings
+      const maintenanceBillsData = await getMaintenanceBills() // Load all maintenance bills
 
       // Load pending payments with details
       const pendingPaymentsWithDetails = pendingPaymentsData.map((pendingPayment): PendingPaymentWithDetails => {
@@ -346,7 +349,15 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
         let billNumber = "N/A"
         let billType = "Regular"
         
-        // Check if this is a meter reading payment (check notes for [ELECTRICITY] marker)
+        // Debug logging
+        console.log('Processing pending payment:', {
+          id: pendingPayment.id,
+          bill_id: pendingPayment.bill_id,
+          notes: pendingPayment.notes,
+          maintenanceBillsCount: maintenanceBillsData.length
+        })
+        
+        // Check if this is a meter reading payment (check notes for [ELECTRICITY] or [GAS] marker)
         if (pendingPayment.notes?.includes('[ELECTRICITY]')) {
           // This is an electricity payment - find the meter reading
           const meterReading = meterReadingsData.find(mr => mr.id === pendingPayment.bill_id)
@@ -357,11 +368,42 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
             billNumber = `ELE-${pendingPayment.bill_id.slice(-6).toUpperCase()}`
             billType = "Electricity"
           }
+        } else if (pendingPayment.notes?.includes('[GAS]')) {
+          // This is a gas payment - find the meter reading
+          const meterReading = meterReadingsData.find(mr => mr.id === pendingPayment.bill_id)
+          if (meterReading) {
+            billNumber = meterReading.bill_number || `GAS-${pendingPayment.bill_id.slice(-6).toUpperCase()}`
+            billType = "Gas"
+          } else {
+            billNumber = `GAS-${pendingPayment.bill_id.slice(-6).toUpperCase()}`
+            billType = "Gas"
+          }
+        } else if (pendingPayment.notes?.toLowerCase().includes('maintenance')) {
+          // This is a maintenance bill - find the maintenance bill
+          console.log('Found maintenance in notes, looking for bill_id:', pendingPayment.bill_id)
+          const maintenanceBill = maintenanceBillsData.find(mb => mb.id === pendingPayment.bill_id)
+          console.log('Found maintenance bill:', maintenanceBill)
+          if (maintenanceBill) {
+            billNumber = maintenanceBill.bill_number || `MAINT-${pendingPayment.bill_id.slice(-6).toUpperCase()}`
+            billType = "Maintenance"
+          } else {
+            billNumber = `MAINT-${pendingPayment.bill_id.slice(-6).toUpperCase()}`
+            billType = "Maintenance"
+          }
         } else {
-          // Regular bill
-          const bill = billsData.find((b) => b.id === pendingPayment.bill_id)
-          billNumber = bill?.bill_number || "N/A"
-          billType = "Regular"
+          // Check if this is a maintenance bill by looking at the bill_id
+          console.log('Checking fallback - looking for bill_id in maintenance bills:', pendingPayment.bill_id)
+          const maintenanceBill = maintenanceBillsData.find(mb => mb.id === pendingPayment.bill_id)
+          console.log('Fallback maintenance bill found:', maintenanceBill)
+          if (maintenanceBill) {
+            billNumber = maintenanceBill.bill_number || `MAINT-${pendingPayment.bill_id.slice(-6).toUpperCase()}`
+            billType = "Maintenance"
+          } else {
+            // Regular bill
+            const bill = billsData.find((b) => b.id === pendingPayment.bill_id)
+            billNumber = bill?.bill_number || "N/A"
+            billType = "Regular"
+          }
         }
 
         return {
@@ -369,6 +411,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
           customerName: business?.name || "Unknown",
           shopNumber: business?.shop_number || "N/A",
           billNumber: billNumber,
+          billType: billType,
           floor: `Floor ${business?.floor_number || 0}`,
           businessType: business?.type || "Unknown",
         }
@@ -1071,8 +1114,17 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
                       <div>
                         <div className="font-medium">{payment.billNumber}</div>
                         <div className="text-xs">
-                          <Badge variant="outline" className={`${payment.notes?.includes('[ELECTRICITY]') ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
-                            {payment.notes?.includes('[ELECTRICITY]') ? '⚡ Electricity' : '🏢 Rental'}
+                          <Badge
+                            variant="outline"
+                            className={
+                              payment.billType === 'Electricity'
+                                ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                : payment.billType === 'Maintenance'
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : 'bg-gray-50 text-gray-700 border-gray-200'
+                            }
+                          >
+                            {payment.billType === 'Electricity' ? '⚡ Electricity' : payment.billType === 'Maintenance' ? '🛠 Maintenance' : '🏢 Rental'}
                           </Badge>
                         </div>
                       </div>

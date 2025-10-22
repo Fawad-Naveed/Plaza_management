@@ -842,9 +842,9 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
                       <div className="p-3 bg-blue-500 rounded-xl">
                         <Zap className="h-6 w-6 text-white" />
                       </div>
-                      <div>
-                        <div className="text-2xl font-bold text-blue-700">
-                          {monthlyDetailsDialog.monthlyData.reduce((sum, data) => sum + data.consumption, 0)}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-2xl font-bold text-blue-700 truncate" title={monthlyDetailsDialog.monthlyData.reduce((sum, data) => sum + data.consumption, 0).toString()}>
+                          {monthlyDetailsDialog.monthlyData.reduce((sum, data) => sum + data.consumption, 0).toFixed(1)}
                         </div>
                         <div className="text-sm text-blue-600 font-medium">Total Consumption (Units)</div>
                       </div>

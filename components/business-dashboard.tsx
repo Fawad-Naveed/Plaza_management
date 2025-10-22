@@ -40,7 +40,7 @@ export function BusinessDashboard() {
   }, [])
 
   // Function to submit payment for admin approval (instead of direct payment)
-  const submitPaymentForApproval = async (billId: string, billType: 'regular' | 'maintenance' | 'electricity', currentStatus: string) => {
+  const submitPaymentForApproval = async (billId: string, billType: 'regular' | 'maintenance' | 'electricity' | 'gas', currentStatus: string) => {
     // Only allow submission for unpaid bills
     if (currentStatus === 'paid') {
       alert('This bill is already paid!')
@@ -65,7 +65,7 @@ export function BusinessDashboard() {
       } else if (billType === 'maintenance') {
         bill = maintenanceBills.find(b => b.id === billId)
         amount = (bill as MaintenanceBill)?.amount || 0
-      } else if (billType === 'electricity') {
+      } else if (billType === 'electricity' || billType === 'gas') {
         bill = meterReadings.find(r => r.id === billId)
         amount = (bill as MeterReading)?.amount || 0
       }
@@ -75,23 +75,24 @@ export function BusinessDashboard() {
         return
       }
       
-      // For electricity meter readings, we create a pending payment using the meter reading ID directly
+      // For electricity and gas meter readings, we create a pending payment using the meter reading ID directly
       // We'll indicate it's from a meter reading in the notes field
-      if (billType === 'electricity') {
-        // Create pending payment for electricity meter reading
+      if (billType === 'electricity' || billType === 'gas') {
+        // Create pending payment for meter reading
+        const meterType = billType.toUpperCase()
         const pendingPaymentData = {
           business_id: authState.businessId,
           bill_id: billId, // Use the meter reading ID directly
           amount: amount,
           payment_method: 'cash' as const,
           payment_date: new Date().toISOString().split('T')[0],
-          notes: `[ELECTRICITY] Payment submitted by ${authState.businessName || 'Business User'} for electricity meter reading. Meter Reading ID: ${billId}`,
+          notes: `[${meterType}] Payment submitted by ${authState.businessName || 'Business User'} for ${billType} meter reading. Meter Reading ID: ${billId}`,
           submitted_by: authState.businessName || 'Business User'
         }
         
         await createPendingPayment(pendingPaymentData)
         
-        alert('Electricity bill payment submitted for admin approval! Please wait for approval.')
+        alert(`${billType.charAt(0).toUpperCase() + billType.slice(1)} bill payment submitted for admin approval! Please wait for approval.`)
         
         // Reload data to reflect any changes
         await loadBusinessData()
@@ -195,11 +196,12 @@ export function BusinessDashboard() {
   }
 
   // Helper function to check if a bill has a pending payment
-  const hasPendingPayment = (billId: string, billType: 'regular' | 'maintenance' | 'electricity') => {
+  const hasPendingPayment = (billId: string, billType: 'regular' | 'maintenance' | 'electricity' | 'gas') => {
     return pendingPayments.some(pending => {
-      if (billType === 'electricity') {
-        // For electricity bills, check if there's a pending payment with the meter reading ID in notes
-        return pending.notes && pending.notes.includes(`[ELECTRICITY]`) && pending.notes.includes(billId)
+      if (billType === 'electricity' || billType === 'gas') {
+        // For meter reading bills, check if there's a pending payment with the meter reading ID in notes
+        const meterType = billType.toUpperCase()
+        return pending.notes && pending.notes.includes(`[${meterType}]`) && pending.notes.includes(billId)
       }
       return pending.bill_id === billId && pending.status === 'pending'
     })
@@ -270,8 +272,9 @@ export function BusinessDashboard() {
 
   const authState = getAuthState()
   const totalBills = bills.length + maintenanceBills.length + meterReadings.length
-  const paidElectricityBills = meterReadings.filter(reading => reading.payment_status === 'paid')
-  const totalPayments = payments.length + maintenancePayments.length + paidElectricityBills.length
+  const paidElectricityBills = meterReadings.filter(reading => reading.meter_type === 'electricity' && reading.payment_status === 'paid')
+  const paidGasBills = meterReadings.filter(reading => reading.meter_type === 'gas' && reading.payment_status === 'paid')
+  const totalPayments = payments.length + maintenancePayments.length + paidElectricityBills.length + paidGasBills.length
   const unpaidBills = [...bills, ...maintenanceBills].filter(bill => bill.status === 'pending')
   const unpaidMeterReadings = meterReadings.filter(reading => reading.payment_status !== 'paid')
   const allUnpaidBills = [...unpaidBills, ...unpaidMeterReadings]
@@ -582,6 +585,63 @@ export function BusinessDashboard() {
                       </div>
                     </div>
                   ))}
+                  
+                  {/* Gas Meter Readings */}
+                  {meterReadings.filter(reading => reading.meter_type === 'gas').slice(0, 5).map((reading) => (
+                    <div key={`gas-${reading.id}`} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+                      <div className="flex items-center gap-3">
+                        {/* Status indicator and checkbox */}
+                        <div className="flex items-center">
+                          <button
+                            onClick={() => {
+                              // For meter readings, we need to handle differently since they don't use the same status system
+                              if (reading.payment_status === 'paid') {
+                                alert('This gas bill is already paid!')
+                                return
+                              }
+                              if (hasPendingPayment(reading.id, 'gas')) {
+                                alert('Payment already submitted for this gas bill!')
+                                return
+                              }
+                              // Create a pending payment for this meter reading
+                              submitPaymentForApproval(reading.id, 'gas', reading.payment_status || 'pending')
+                            }}
+                            className="flex items-center gap-1 hover:text-green-600 transition-colors"
+                            title={
+                              reading.payment_status === 'paid' ? 'Already paid' : 
+                              hasPendingPayment(reading.id, 'gas') ? 'Payment submitted, waiting for approval' :
+                              'Submit payment for approval'
+                            }
+                            disabled={loading || reading.payment_status === 'paid' || hasPendingPayment(reading.id, 'gas')}
+                          >
+                            <div className={`w-2 h-2 rounded-full ${
+                              reading.payment_status === 'paid' ? 'bg-green-500' : 
+                              hasPendingPayment(reading.id, 'gas') ? 'bg-blue-500' : 'bg-orange-500'
+                            }`}></div>
+                            {reading.payment_status === 'paid' ? (
+                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                            ) : hasPendingPayment(reading.id, 'gas') ? (
+                              <CheckCircle2 className="h-5 w-5 text-blue-600" />
+                            ) : (
+                              <Circle className="h-5 w-5 text-gray-400 hover:text-green-600" />
+                            )}
+                          </button>
+                        </div>
+                        <div>
+                          <p className="font-medium">{reading.bill_number || `GAS-${reading.id.slice(-6).toUpperCase()}`}</p>
+                          <p className="text-sm text-gray-600">Gas - {formatDate(reading.reading_date)} ({reading.units_consumed} units)</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{formatCurrency(reading.amount)}</p>
+                        <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          reading.payment_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'
+                        }`}>
+                          {reading.payment_status === 'paid' ? 'paid' : 'pending'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
@@ -619,6 +679,14 @@ export function BusinessDashboard() {
                     displayTitle: 'Electricity Payment',
                     bgColor: 'bg-yellow-50 hover:bg-yellow-100',
                     textColor: 'text-yellow-600'
+                  })),
+                  ...paidGasBills.map(r => ({ 
+                    ...r, 
+                    type: 'gas', 
+                    date: new Date(r.marked_paid_date || r.reading_date),
+                    displayTitle: 'Gas Payment',
+                    bgColor: 'bg-purple-50 hover:bg-purple-100',
+                    textColor: 'text-purple-600'
                   }))
                 ].sort((a, b) => b.date.getTime() - a.date.getTime())
                 
@@ -630,10 +698,10 @@ export function BusinessDashboard() {
                       <div key={`${payment.type}-${payment.id}`} className={`flex items-center justify-between p-3 rounded-lg transition-colors duration-200 ${payment.bgColor}`}>
                         <div>
                           <p className="font-medium">{payment.displayTitle}</p>
-                          {payment.type === 'electricity' ? (
+                          {payment.type === 'electricity' || payment.type === 'gas' ? (
                             <>
                               <p className="text-sm text-gray-600">
-                                {payment.bill_number || `ELE-${payment.id.slice(-6).toUpperCase()}`} - {formatDate(payment.reading_date)}
+                                {payment.bill_number || `${payment.type === 'gas' ? 'GAS' : 'ELE'}-${payment.id.slice(-6).toUpperCase()}`} - {formatDate(payment.reading_date)}
                               </p>
                               <p className="text-xs text-gray-500">{payment.units_consumed} units consumed</p>
                             </>
@@ -642,7 +710,7 @@ export function BusinessDashboard() {
                           )}
                           {payment.marked_paid_by && (
                             <p className="text-xs text-blue-600">
-                              {payment.type === 'electricity' ? 'Approved by' : 'Marked by'}: {payment.marked_paid_by}
+                              {payment.type === 'electricity' || payment.type === 'gas' ? 'Approved by' : 'Marked by'}: {payment.marked_paid_by}
                             </p>
                           )}
                         </div>
@@ -657,6 +725,11 @@ export function BusinessDashboard() {
                           {payment.type === 'electricity' && (
                             <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-1">
                               ⚡ Approved
+                            </div>
+                          )}
+                          {payment.type === 'gas' && (
+                            <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 mt-1">
+                              🔥 Approved
                             </div>
                           )}
                         </div>
