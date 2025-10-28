@@ -35,7 +35,7 @@ const YAxis = dynamic(() => import("recharts").then(m => m.YAxis), { ssr: false 
 const CartesianGrid = dynamic(() => import("recharts").then(m => m.CartesianGrid), { ssr: false })
 const Tooltip = dynamic(() => import("recharts").then(m => m.Tooltip), { ssr: false })
 const Legend = dynamic(() => import("recharts").then(m => m.Legend), { ssr: false })
-import { getBills, getMeterReadings, getBusinesses, getMaintenanceBills } from "@/lib/database"
+import { getBills, getMeterReadings, getBusinesses, getMaintenanceBills, getInformation, type Information } from "@/lib/database"
 
 interface ReportsModuleProps {
   activeSubSection: string
@@ -60,6 +60,7 @@ export function ReportsModule({ activeSubSection }: ReportsModuleProps) {
   const [bills, setBills] = useState<any[]>([])
   const [meterReadings, setMeterReadings] = useState<any[]>([])
   const [maintenanceBills, setMaintenanceBills] = useState<any[]>([])
+  const [businessInfo, setBusinessInfo] = useState<Information | null>(null)
 
   useEffect(() => {
     loadData()
@@ -73,17 +74,19 @@ export function ReportsModule({ activeSubSection }: ReportsModuleProps) {
     setLoading(true)
     setError(null)
     try {
-      const [businessesData, billsData, meterReadingsData, maintenanceBillsData] = await Promise.all([
+      const [businessesData, billsData, meterReadingsData, maintenanceBillsData, infoData] = await Promise.all([
         getBusinesses(),
         getBills(),
         getMeterReadings(),
         getMaintenanceBills(),
+        getInformation().catch(() => null),
       ])
       
       setBusinesses(businessesData)
       setBills(billsData)
       setMeterReadings(meterReadingsData)
       setMaintenanceBills(maintenanceBillsData)
+      setBusinessInfo(infoData)
     } catch (err) {
       console.error("Error loading data:", err)
       setError("Failed to load data")
@@ -237,6 +240,166 @@ export function ReportsModule({ activeSubSection }: ReportsModuleProps) {
     }
   }
 
+  const downloadPDF = async (reportType: string) => {
+    try {
+      setLoading(true)
+      
+      // Dynamically import jsPDF
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF()
+      
+      let data: any[] = []
+      let reportTitle = ""
+      
+      switch (reportType) {
+        case "rent":
+          data = filterDataByDateRange(bills.filter(bill => bill.bill_number.startsWith('RENT')))
+          reportTitle = "Rent History Report"
+          break
+        case "maintenance":
+          data = filterDataByDateRange(maintenanceBills)
+          reportTitle = "Maintenance History Report"
+          break
+        case "gas":
+          data = filterDataByDateRange(meterReadings.filter(reading => reading.meter_type === 'gas'))
+          reportTitle = "Gas History Report"
+          break
+        case "electricity":
+          data = filterDataByDateRange(meterReadings.filter(reading => reading.meter_type === 'electricity'))
+          reportTitle = "Electricity History Report"
+          break
+      }
+      
+      let yPos = 20
+      
+      // Add logo if available
+      if (businessInfo?.logo_url) {
+        try {
+          const img = new Image()
+          img.crossOrigin = "anonymous"
+          await new Promise((resolve, reject) => {
+            img.onload = resolve
+            img.onerror = reject
+            img.src = businessInfo.logo_url!
+          })
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          canvas.width = 30
+          canvas.height = 30
+          ctx?.drawImage(img, 0, 0, 30, 30)
+          const logoDataUrl = canvas.toDataURL('image/png')
+          doc.addImage(logoDataUrl, 'PNG', 90, yPos - 5, 30, 30)
+          yPos += 35
+        } catch (logoError) {
+          console.log("Failed to load logo, proceeding without it")
+        }
+      }
+      
+      // Header
+      doc.setFontSize(20)
+      const businessName = businessInfo?.business_name || "PLAZA MANAGEMENT"
+      doc.text(businessName.toUpperCase(), 105, yPos, { align: "center" })
+      doc.setFontSize(14)
+      doc.text(reportTitle, 105, yPos + 10, { align: "center" })
+      
+      // Period info
+      doc.setFontSize(10)
+      doc.text(`Period: ${filters.startDate} to ${filters.endDate}`, 105, yPos + 20, { align: "center" })
+      yPos += 35
+      
+      // Summary
+      doc.setFontSize(12)
+      doc.text(`Total Records: ${data.length}`, 20, yPos)
+      yPos += 10
+      
+      const totalAmount = data.reduce((sum, item) => sum + (item.total_amount || item.amount || 0), 0)
+      doc.text(`Total Amount: PKR ${totalAmount.toFixed(2)}`, 20, yPos)
+      yPos += 15
+      
+      // Table
+      doc.setFontSize(9)
+      doc.setFont(undefined, 'bold')
+      
+      if (reportType === "rent" || reportType === "maintenance") {
+        // Table headers
+        doc.text("Business", 20, yPos)
+        doc.text("Shop", 70, yPos)
+        doc.text("Bill No", 95, yPos)
+        doc.text("Date", 130, yPos)
+        doc.text("Amount", 160, yPos)
+        doc.text("Status", 185, yPos)
+        yPos += 5
+        doc.line(20, yPos, 200, yPos)
+        yPos += 7
+        
+        doc.setFont(undefined, 'normal')
+        
+        data.slice(0, 25).forEach(item => {
+          if (yPos > 270) {
+            doc.addPage()
+            yPos = 30
+          }
+          doc.text(getBusinessName(item.business_id).substring(0, 25), 20, yPos)
+          doc.text(getBusinessShop(item.business_id), 70, yPos)
+          doc.text(item.bill_number, 95, yPos)
+          doc.text(item.bill_date, 130, yPos)
+          doc.text(`${(item.total_amount || item.amount || 0).toFixed(0)}`, 160, yPos)
+          doc.text(item.status || 'N/A', 185, yPos)
+          yPos += 8
+        })
+      } else {
+        // Meter readings table
+        doc.text("Business", 20, yPos)
+        doc.text("Shop", 65, yPos)
+        doc.text("Date", 90, yPos)
+        doc.text("Units", 120, yPos)
+        doc.text("Rate", 145, yPos)
+        doc.text("Amount", 170, yPos)
+        yPos += 5
+        doc.line(20, yPos, 200, yPos)
+        yPos += 7
+        
+        doc.setFont(undefined, 'normal')
+        
+        data.slice(0, 25).forEach(item => {
+          if (yPos > 270) {
+            doc.addPage()
+            yPos = 30
+          }
+          doc.text(getBusinessName(item.business_id).substring(0, 20), 20, yPos)
+          doc.text(getBusinessShop(item.business_id), 65, yPos)
+          doc.text(item.reading_date, 90, yPos)
+          doc.text(`${item.units_consumed}`, 120, yPos)
+          doc.text(`${item.rate_per_unit.toFixed(1)}`, 145, yPos)
+          doc.text(`${item.amount.toFixed(0)}`, 170, yPos)
+          yPos += 8
+        })
+      }
+      
+      if (data.length > 25) {
+        doc.setFontSize(8)
+        doc.text(`* Showing first 25 records out of ${data.length} total records`, 20, yPos + 10)
+      }
+      
+      // Footer
+      const pageCount = doc.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.text(`Page ${i} of ${pageCount}`, 105, 285, { align: "center" })
+        doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 285)
+      }
+      
+      doc.save(`${reportTitle.replace(/ /g, '_')}_${filters.startDate}_to_${filters.endDate}.pdf`)
+      
+    } catch (err) {
+      console.error("Error downloading PDF:", err)
+      setError("Failed to download PDF file")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const getReportTitle = () => {
     switch (activeSubSection) {
       case "reports-rent":
@@ -375,24 +538,37 @@ export function ReportsModule({ activeSubSection }: ReportsModuleProps) {
         <div className="space-y-4">
           <p className="text-gray-600">{getReportDescription()}</p>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button 
-              className="bg-green-600 text-white hover:bg-green-700"
-              onClick={() => downloadExcel(activeSubSection.replace('reports-', ''))}
-              disabled={loading}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {loading ? "Generating..." : "Download Excel"}
-            </Button>
-            
-            <div className="text-sm text-gray-600">
-              <div className="font-medium">Period: {filters.period.charAt(0).toUpperCase() + filters.period.slice(1)}</div>
-              <div>Date Range: {filters.startDate} to {filters.endDate}</div>
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-4">
+              <Button 
+                className="bg-green-600 text-white hover:bg-green-700"
+                onClick={() => downloadExcel(activeSubSection.replace('reports-', ''))}
+                disabled={loading}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {loading ? "Generating..." : "Download Excel"}
+              </Button>
+              
+              <Button 
+                className="bg-red-600 text-white hover:bg-red-700"
+                onClick={() => downloadPDF(activeSubSection.replace('reports-', ''))}
+                disabled={loading}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                {loading ? "Generating..." : "Download PDF"}
+              </Button>
             </div>
             
-            <div className="text-sm text-gray-600">
-              <div className="font-medium">Business Filter:</div>
-              <div>{filters.businessId ? getBusinessName(filters.businessId) : "All Businesses"}</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="text-sm text-gray-600">
+                <div className="font-medium">Period: {filters.period.charAt(0).toUpperCase() + filters.period.slice(1)}</div>
+                <div>Date Range: {filters.startDate} to {filters.endDate}</div>
+              </div>
+              
+              <div className="text-sm text-gray-600">
+                <div className="font-medium">Business Filter:</div>
+                <div>{filters.businessId ? getBusinessName(filters.businessId) : "All Businesses"}</div>
+              </div>
             </div>
           </div>
           

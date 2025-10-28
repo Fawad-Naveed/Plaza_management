@@ -126,6 +126,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
   const [billCreationLoading, setBillCreationLoading] = useState(false)
   const [availableTerms, setAvailableTerms] = useState<TC[]>([])
   const [selectedTermsIds, setSelectedTermsIds] = useState<string[]>([])
+  const [businessInfo, setBusinessInfo] = useState<Information | null>(null)
   
   // Form validation state
   const [validationErrors, setValidationErrors] = useState({
@@ -137,6 +138,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
   useEffect(() => {
     loadBillData()
     loadTermsConditions()
+    loadBusinessInfo()
     
     // Set bill type based on management mode
     if (isRentManagement) {
@@ -202,6 +204,16 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
       setAvailableTerms(terms)
     } catch (err) {
       console.error("Error loading terms and conditions:", err)
+      // Don't set error state as this is optional functionality
+    }
+  }
+
+  const loadBusinessInfo = async () => {
+    try {
+      const info = await getInformation()
+      setBusinessInfo(info)
+    } catch (err) {
+      console.error("Error loading business information:", err)
       // Don't set error state as this is optional functionality
     }
   }
@@ -402,6 +414,113 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
     setShowTermsDialog(false)
     setSelectedTerms([])
     setTermsText("")
+  }
+
+  const handleGenerateAllBills = async () => {
+    // Validate required fields for bulk generation
+    if (!newBill.month || !newBill.dueDate) {
+      setValidationErrors(prev => ({
+        ...prev,
+        month: !newBill.month,
+        dueDate: !newBill.dueDate
+      }))
+      setError("Please fill in Month and Due Date before generating all bills")
+      return
+    }
+
+    const confirmGenerate = confirm(
+      `This will generate ${filteredBusinesses.length} rent bills for ${newBill.month} ${new Date().getFullYear()}. Continue?`
+    )
+
+    if (!confirmGenerate) return
+
+    try {
+      setBillCreationLoading(true)
+      let successCount = 0
+      let skipCount = 0
+      const errors: string[] = []
+
+      for (const business of filteredBusinesses) {
+        try {
+          // Check for existing advance
+          const existingAdvance = checkExistingAdvance(business.id, newBill.month, new Date().getFullYear().toString())
+          if (existingAdvance) {
+            skipCount++
+            continue
+          }
+
+          // Check if bill already exists for this month/year
+          const monthIndex = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+          ].indexOf(newBill.month)
+          
+          const existingBill = bills.find(b => {
+            const billDate = new Date(b.bill_date)
+            return b.business_id === business.id &&
+                   billDate.getMonth() === monthIndex &&
+                   billDate.getFullYear() === new Date().getFullYear()
+          })
+
+          if (existingBill) {
+            skipCount++
+            continue
+          }
+
+          // Generate bill for this business
+          const billNumber = await generateBillNumber("rent")
+          const rentAmount = business.rent_amount || 0
+
+          const billData = {
+            business_id: business.id,
+            bill_number: billNumber,
+            bill_date: new Date().toISOString().split("T")[0],
+            due_date: newBill.dueDate,
+            rent_amount: Number(rentAmount) || 0,
+            maintenance_charges: Number(rentAmount) || 0,
+            electricity_charges: 0,
+            gas_charges: 0,
+            water_charges: 0,
+            other_charges: 0,
+            total_amount: Number(rentAmount) || 0,
+            status: "pending" as const,
+            terms_conditions_ids: availableTerms.filter(term => selectedTermsIds.includes(term.id)).map(t => t.id) || null,
+            terms_conditions_text: availableTerms.filter(term => selectedTermsIds.includes(term.id)).map(term => `${term.title}: ${term.description || ''}`).join('\n\n') || null,
+          }
+
+          const { error } = await clientDb.createBill(billData)
+          if (error) {
+            errors.push(`${business.name}: ${error.message}`)
+          } else {
+            successCount++
+          }
+        } catch (err) {
+          errors.push(`${business.name}: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        }
+      }
+
+      await loadBillData()
+
+      // Show result message
+      let message = `Successfully generated ${successCount} bills.`
+      if (skipCount > 0) {
+        message += `\n${skipCount} businesses skipped (advance paid or bill already exists).`
+      }
+      if (errors.length > 0) {
+        message += `\n\nErrors (${errors.length}):\n${errors.slice(0, 5).join('\n')}`
+        if (errors.length > 5) {
+          message += `\n... and ${errors.length - 5} more errors`
+        }
+      }
+
+      alert(message)
+    } catch (err) {
+      console.error("Error generating all bills:", err)
+      setError(err instanceof Error ? err.message : "Failed to generate bills")
+      alert("Failed to generate all bills. Please try again.")
+    } finally {
+      setBillCreationLoading(false)
+    }
   }
 
   const createBillWithTerms = async (terms: (TermsCondition | TC)[], termsTextValue: string) => {
@@ -1505,12 +1624,22 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
   const renderGenerateBill = () => (
     <Card className="border-gray-200">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">
-          {isEditMode ? `Edit Bill - ${editingBill?.bill_number}` : 
-           isRentManagement ? "Generate New Rent Bill" :
-           isElectricityManagement ? "Generate New Electricity Bill" :
-           isGasManagement ? "Generate New Gas Bill" : "Generate New Bill"}
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold">
+            {isEditMode ? `Edit Bill - ${editingBill?.bill_number}` : 
+             isRentManagement ? "Generate New Rent Bill" :
+             isElectricityManagement ? "Generate New Electricity Bill" :
+             isGasManagement ? "Generate New Gas Bill" : "Generate New Bill"}
+          </CardTitle>
+          {isRentManagement && !isEditMode && businessInfo?.rent_bill_generation_day && (
+            <div className="text-sm text-gray-600 flex items-center gap-1">
+              <span className="font-medium">Auto-generate day:</span>
+              <span className="text-blue-600 font-semibold">
+                {businessInfo.rent_bill_generation_day}{businessInfo.rent_bill_generation_day === 1 ? 'st' : businessInfo.rent_bill_generation_day === 2 ? 'nd' : businessInfo.rent_bill_generation_day === 3 ? 'rd' : 'th'} of month
+              </span>
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1871,6 +2000,28 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
               </>
             )}
           </Button>
+          
+          {/* Generate All Bills button - only show in rent management and not in edit mode */}
+          {isRentManagement && !isEditMode && (
+            <Button
+              onClick={handleGenerateAllBills}
+              className="bg-green-600 text-white hover:bg-green-700"
+              disabled={billCreationLoading}
+            >
+              {billCreationLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Generate All ({filteredBusinesses.length})
+                </>
+              )}
+            </Button>
+          )}
+          
           {isEditMode && (
             <Button
               variant="outline"
@@ -1883,6 +2034,8 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                   billType: "electricity",
                   electricityUnits: "",
                   electricityRate: "8.5",
+                  gasUnits: "",
+                  gasRate: "150.0",
                   maintenanceAmount: "",
                   maintenanceDescription: "",
                   waterCharges: "",

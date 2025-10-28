@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Upload, Save, Loader2, Building, Mail, Phone, Globe, MapPin } from "lucide-react"
+import { Upload, Save, Loader2, Building, Mail, Phone, Globe, MapPin, Calendar } from "lucide-react"
 import { clientDb, type Information, getInformation, upsertInformation } from "@/lib/database"
 
 interface SettingsProps {
@@ -27,6 +27,7 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
     contact_phone: "",
     address: "",
     website: "",
+    rent_bill_generation_day: "1",
   })
 
   useEffect(() => {
@@ -48,6 +49,7 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
           contact_phone: data.contact_phone || "",
           address: data.address || "",
           website: data.website || "",
+          rent_bill_generation_day: data.rent_bill_generation_day?.toString() || "1",
         })
       }
     } catch (err) {
@@ -69,7 +71,10 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
       setError(null)
       setSuccess(null)
 
-      const result = await upsertInformation(formData)
+      const result = await upsertInformation({
+        ...formData,
+        rent_bill_generation_day: parseInt(formData.rent_bill_generation_day) || 1
+      })
       setInformation(result)
       setSuccess("Settings saved successfully!")
       
@@ -132,6 +137,27 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="rentBillDay" className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Rent Bill Generation Day
+              </Label>
+              <select
+                id="rentBillDay"
+                value={formData.rent_bill_generation_day}
+                onChange={(e) => handleInputChange("rent_bill_generation_day", e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                  <option key={day} value={day}>
+                    {day}{day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'} of every month
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500">
+                Select the day of the month when rent bills should be generated for all tenants.
+              </p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="businessName">Business Name *</Label>
               <Input

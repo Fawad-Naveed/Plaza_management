@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, TrendingUp, DollarSign, FileText, Zap, Home, Wrench, Flame, AlertTriangle } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Loader2, TrendingUp, DollarSign, FileText, Zap, Home, Wrench, Flame, AlertTriangle, Filter, Calendar } from "lucide-react"
 import dynamic from "next/dynamic"
 import { getRevenueByMonth, getRevenueStats, getWavedOffDebt } from "@/lib/database"
 
@@ -68,6 +69,19 @@ export function RevenueInsights() {
   const [totalDebt, setTotalDebt] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [timePeriod, setTimePeriod] = useState<'month' | 'quarter' | 'year' | 'all' | 'custom'>('all')
+  const [selectedMonth, setSelectedMonth] = useState<string>('')
+  
+  // Store the original unfiltered data
+  const [unfilteredRevenueData, setUnfilteredRevenueData] = useState<RevenueData[]>([])
+  const [unfilteredRevenueStats, setUnfilteredRevenueStats] = useState<RevenueStats | null>(null)
+  const [unfilteredTotalDebt, setUnfilteredTotalDebt] = useState<number>(0)
+  
+  // Get available months from revenue data
+  const availableMonths = unfilteredRevenueData.map(data => ({
+    value: `${data.fullDate.getFullYear()}-${String(data.fullDate.getMonth() + 1).padStart(2, '0')}`,
+    label: data.month
+  })).reverse() // Most recent first
 
   useEffect(() => {
     loadRevenueData()
@@ -84,15 +98,99 @@ export function RevenueInsights() {
         getWavedOffDebt()
       ])
 
-      setRevenueData(monthlyData)
-      setRevenueStats(stats)
-      setTotalDebt(debtData)
+      // Store unfiltered data
+      setUnfilteredRevenueData(monthlyData)
+      setUnfilteredRevenueStats(stats)
+      setUnfilteredTotalDebt(debtData)
+      
+      // Apply current filter
+      applyFilter(monthlyData, stats, debtData, timePeriod)
     } catch (err) {
       console.error("Error loading revenue data:", err)
       setError(err instanceof Error ? err.message : "Failed to load revenue data")
     } finally {
       setLoading(false)
     }
+  }
+  
+  const applyFilter = (monthlyData: RevenueData[], stats: RevenueStats, debt: number, period: 'month' | 'quarter' | 'year' | 'all' | 'custom', customMonth?: string) => {
+    const now = new Date()
+    let startDate: Date
+    let endDate: Date | undefined
+    
+    switch (period) {
+      case 'custom':
+        if (!customMonth) return
+        const [year, month] = customMonth.split('-').map(Number)
+        startDate = new Date(year, month - 1, 1)
+        endDate = new Date(year, month, 0, 23, 59, 59) // Last day of the month
+        break
+      case 'month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+        break
+      case 'quarter':
+        const quarterMonth = Math.floor(now.getMonth() / 3) * 3
+        startDate = new Date(now.getFullYear(), quarterMonth, 1)
+        break
+      case 'year':
+        startDate = new Date(now.getFullYear(), 0, 1)
+        break
+      case 'all':
+      default:
+        setRevenueData(monthlyData)
+        setRevenueStats(stats)
+        setTotalDebt(debt)
+        return
+    }
+    
+    // Filter monthly data
+    const filteredMonthlyData = monthlyData.filter(data => {
+      const dataDate = new Date(data.fullDate)
+      if (endDate) {
+        return dataDate >= startDate && dataDate <= endDate
+      }
+      return dataDate >= startDate
+    })
+    
+    // Calculate filtered stats
+    const filteredStats: RevenueStats = {
+      totalRevenue: filteredMonthlyData.reduce((sum, data) => sum + data.revenue, 0),
+      revenueByComponent: {
+        rent: filteredMonthlyData.reduce((sum, data) => sum + data.rent, 0),
+        electricity: filteredMonthlyData.reduce((sum, data) => sum + data.electricity, 0),
+        maintenance: filteredMonthlyData.reduce((sum, data) => sum + data.maintenance, 0),
+        gas: filteredMonthlyData.reduce((sum, data) => sum + data.gas, 0),
+      },
+      unpaidByComponent: stats.unpaidByComponent, // Always show current unpaid bills regardless of period
+      totalBillsGenerated: filteredMonthlyData.reduce((sum, data) => sum + data.billsGenerated, 0),
+      billCountsByComponent: {
+        rent: filteredMonthlyData.reduce((sum, data) => sum + data.billCounts.rent, 0),
+        electricity: filteredMonthlyData.reduce((sum, data) => sum + data.billCounts.electricity, 0),
+        gas: filteredMonthlyData.reduce((sum, data) => sum + data.billCounts.gas, 0),
+        maintenance: filteredMonthlyData.reduce((sum, data) => sum + data.billCounts.maintenance, 0),
+      },
+      unpaidBillCountsByComponent: stats.unpaidBillCountsByComponent // Always show current unpaid bill counts
+    }
+    
+    setRevenueData(filteredMonthlyData)
+    setRevenueStats(filteredStats)
+    setTotalDebt(period === 'all' ? debt : 0) // Only show debt for 'all' period
+  }
+  
+  const handlePeriodChange = (period: 'month' | 'quarter' | 'year' | 'all' | 'custom') => {
+    setTimePeriod(period)
+    if (period === 'custom') {
+      // Don't apply filter yet, wait for month selection
+      return
+    }
+    setSelectedMonth('') // Clear custom month selection
+    applyFilter(unfilteredRevenueData, unfilteredRevenueStats!, unfilteredTotalDebt, period)
+  }
+  
+  const handleMonthChange = (monthValue: string) => {
+    setSelectedMonth(monthValue)
+    setTimePeriod('custom')
+    applyFilter(unfilteredRevenueData, unfilteredRevenueStats!, unfilteredTotalDebt, 'custom', monthValue)
   }
 
   const formatCurrency = (amount: number) => {
@@ -155,6 +253,72 @@ export function RevenueInsights() {
 
   return (
     <div className="space-y-6">
+      {/* Filter Section */}
+      <Card className="border-gray-200">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className="h-5 w-5 text-gray-600" />
+              <span className="font-medium text-gray-700">Filters:</span>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <Select value={timePeriod} onValueChange={(value: any) => handlePeriodChange(value)}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="month">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      This Month
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="quarter">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      This Quarter
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="year">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      This Year
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="all">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4" />
+                      All Time
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="custom">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Custom Month
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {timePeriod === 'custom' && (
+                <Select value={selectedMonth} onValueChange={handleMonthChange}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMonths.map(month => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
       {/* Revenue Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Revenue Card */}

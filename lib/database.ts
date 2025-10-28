@@ -241,6 +241,7 @@ export interface Information {
   contact_phone?: string
   address?: string
   website?: string
+  rent_bill_generation_day?: number // Day of month (1-31) when rent bills should be generated
   created_at: string
   updated_at: string
 }

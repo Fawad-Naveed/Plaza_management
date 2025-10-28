@@ -29,7 +29,7 @@ export function Sidebar({
   isMobileDrawerOpen = false,
   onMobileDrawerToggle,
 }: SidebarProps) {
-  const [expandedSections, setExpandedSections] = useState<string[]>(["customer"])
+  const [expandedSections, setExpandedSections] = useState<string[]>([])
   const [businessInfo, setBusinessInfo] = useState<Information | null>(null)
   const { isMobile } = useMobileSidebar()
   const { handleTouchStart, handleTouchMove, handleTouchEnd } = useTouchGestures()
