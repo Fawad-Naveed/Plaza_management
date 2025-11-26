@@ -33,6 +33,10 @@ import { FileText, Plus, Zap, Wrench, Search, Eye, Download, Loader2, Edit, Tras
 import { clientDb, type Business, type Bill as DBBill, type MeterReading, type Floor, type Advance, type PartialPayment, getInformation, type Information, updateMeterReading, type TermsCondition, getTCs, type TC } from "@/lib/database"
 import { TermsSelectionDialog } from "./terms-selection-dialog"
 import { useBreakpoint } from "@/hooks/use-mobile"
+import { generateElectricityBillPDF, type BillData } from "@/lib/electricity-bill-pdf"
+import { generateRentBillPDF, type RentBillData } from "@/lib/rent-bill-pdf"
+import { generateMaintenanceBillPDF, type MaintenanceBillData } from "@/lib/maintenance-bill-pdf"
+import { generateGasBillPDF, type GasBillData } from "@/lib/gas-bill-pdf"
 
 declare global {
   interface Window {
@@ -643,271 +647,69 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
     }
   }
 
-  // Generate PDF for meter reading with complete history
+  // Generate PDF for meter reading with complete history using AutoTable
   const downloadMeterReadingPDF = async (reading: MeterReading) => {
     try {
-      // Import jsPDF dynamically with error handling
-      const jsPDFModule = await import("jspdf")
-      const jsPDF = jsPDFModule.jsPDF
-      
-      if (!jsPDF) {
-        throw new Error("jsPDF not loaded properly")
-      }
-
-      const doc = new jsPDF()
       const business = businesses.find((b) => b.id === reading.business_id)
 
-      // Get all meter readings for this business (same type as current reading)
+      // Get all meter readings for this business (same type as current reading) - last 12 months
       const { data: allReadings } = await clientDb.getMeterReadings(reading.business_id)
       const businessReadings = (allReadings || [])
         .filter(r => r.meter_type === reading.meter_type)
-        .sort((a, b) => new Date(a.reading_date).getTime() - new Date(b.reading_date).getTime())
+        .sort((a, b) => new Date(b.reading_date).getTime() - new Date(a.reading_date).getTime())
+        .slice(0, 12) // Last 12 months
 
       // Get business information for branding
-      let businessInfo: Information | null = null
+      let businessInfoData: Information | null = null
       try {
-        businessInfo = await getInformation()
+        businessInfoData = await getInformation()
       } catch (error) {
         console.log("No business information found, using default branding")
       }
 
-      let headerYPos = 20
+      // Calculate arrears (unpaid previous bills)
+      const unpaidReadings = businessReadings.filter(r => 
+        r.id !== reading.id && 
+        r.payment_status !== 'paid' && 
+        new Date(r.reading_date) < new Date(reading.reading_date)
+      )
+      const arrears = unpaidReadings.reduce((sum, r) => sum + r.amount, 0)
 
-      // Add logo if available
-      if (businessInfo?.logo_url) {
-        try {
-          const img = new Image()
-          img.crossOrigin = "anonymous"
+      // Calculate late payment surcharge (5% if payment is after due date)
+      const lateSurchargeRate = 0.05 // 5%
+      const lateSurcharge = reading.amount * lateSurchargeRate
 
-          await new Promise((resolve, reject) => {
-            img.onload = resolve
-            img.onerror = reject
-            img.src = businessInfo.logo_url!
-          })
-
-          const canvas = document.createElement('canvas')
-          const ctx = canvas.getContext('2d')
-          canvas.width = 30
-          canvas.height = 30
-          ctx?.drawImage(img, 0, 0, 30, 30)
-
-          const logoDataUrl = canvas.toDataURL('image/png')
-          doc.addImage(logoDataUrl, 'PNG', 90, headerYPos - 5, 30, 30)
-          headerYPos += 35
-        } catch (logoError) {
-          console.log("Failed to load logo, proceeding without it")
-        }
+      // Prepare bill data for AutoTable PDF generator
+      const billData: BillData = {
+        reading: {
+          id: reading.id,
+          business_id: reading.business_id,
+          bill_number: reading.bill_number || `REF${reading.id.slice(-8).toUpperCase()}`,
+          reading_date: reading.reading_date,
+          payment_status: reading.payment_status || 'pending',
+          previous_reading: reading.previous_reading || 0,
+          current_reading: reading.current_reading || 0,
+          units_consumed: reading.units_consumed || 0,
+          amount: reading.amount,
+          rate_per_unit: reading.rate_per_unit,
+          meter_number: reading.meter_number,
+          created_at: reading.created_at,
+        },
+        businessReadings,
+        business,
+        businessInfo: businessInfoData || undefined,
+        getBusinessName,
+        getBusinessShop,
+        getFloorName,
+        arrears,
+        lateSurcharge,
       }
 
-      // Header with business name or default
-      doc.setFontSize(20)
-      const businessName = businessInfo?.business_name || "PLAZA MANAGEMENT"
-      doc.text(businessName.toUpperCase(), 105, headerYPos, { align: "center" })
-
-      doc.setFontSize(14)
-      const invoiceTitle = reading.meter_type === "gas" ? "Gas Meter Reading Invoice" : "Electricity Meter Reading Invoice"
-      doc.text(invoiceTitle, 105, headerYPos + 10, { align: "center" })
-
-      // Add contact info if available
-      if (businessInfo?.contact_email || businessInfo?.contact_phone) {
-        doc.setFontSize(10)
-        let contactText = ""
-        if (businessInfo.contact_email) contactText += businessInfo.contact_email
-        if (businessInfo.contact_phone) {
-          if (contactText) contactText += " | "
-          contactText += businessInfo.contact_phone
-        }
-        doc.text(contactText, 105, headerYPos + 20, { align: "center" })
-        headerYPos += 10
-      }
-
-      // Invoice details
-      const invoiceDetailsYPos = headerYPos + 30
-      doc.setFontSize(12)
-      doc.text("Bill To:", 20, invoiceDetailsYPos)
-      doc.text(getBusinessName(reading.business_id) || "Unknown Business", 20, invoiceDetailsYPos + 10)
-      doc.text(`Shop: ${getBusinessShop(reading.business_id) || "Unknown Shop"}`, 20, invoiceDetailsYPos + 20)
-      doc.text(`${getFloorName(business?.floor_number || 1) || "Floor 1"}`, 20, invoiceDetailsYPos + 30)
-
-      // Invoice info (right side)
-      const invoiceNumber = reading.bill_number || `MR-${reading.id.slice(-6).toUpperCase()}`
-      doc.text(`Invoice No: ${invoiceNumber}`, 120, invoiceDetailsYPos)
-      doc.text(`Reading Date: ${reading.reading_date || 'N/A'}`, 120, invoiceDetailsYPos + 10)
-      doc.text(`Meter Type: ${(reading.meter_type || 'electricity').charAt(0).toUpperCase() + (reading.meter_type || 'electricity').slice(1)}`, 120, invoiceDetailsYPos + 20)
-      doc.text(`Status: ${reading.payment_status ? reading.payment_status.charAt(0).toUpperCase() + reading.payment_status.slice(1) : 'Pending'}`, 120, invoiceDetailsYPos + 30)
-
-      // Current meter reading details
-      let yPos = invoiceDetailsYPos + 50
-      doc.setFontSize(14)
-      doc.setFont(undefined, 'bold')
-      doc.text("Current Reading Details:", 20, yPos)
-      doc.setFont(undefined, 'normal')
-      yPos += 15
-
-      doc.setFontSize(12)
-      doc.text(`Previous Reading: ${reading.previous_reading || 0} units`, 20, yPos)
-      yPos += 10
-      doc.text(`Current Reading: ${reading.current_reading || 0} units`, 20, yPos)
-      yPos += 10
-      doc.text(`Units Consumed: ${reading.units_consumed || 0} units`, 20, yPos)
-      yPos += 10
-      doc.text(`Rate per Unit: PKR ${(reading.rate_per_unit || 0).toFixed(2)}/unit`, 20, yPos)
-      yPos += 15
-
-      // Calculation breakdown
-      doc.setFontSize(10)
-      doc.text(`Calculation: ${reading.units_consumed || 0} units × PKR ${(reading.rate_per_unit || 0).toFixed(2)} = PKR ${(reading.amount || 0).toFixed(2)}`, 20, yPos)
-      yPos += 15
-
-      // Total amount for current reading
-      doc.setFontSize(16)
-      doc.setFont(undefined, 'bold')
-      doc.text(`Current Bill Amount: PKR ${(reading.amount || 0).toFixed(2)}`, 20, yPos)
-      doc.setFont(undefined, 'normal')
-      yPos += 20
-
-      // Reading History Section
-      if (businessReadings.length > 1) {
-        doc.setFontSize(14)
-        doc.setFont(undefined, 'bold')
-        const historyTitle = reading.meter_type === "gas" ? "Gas Reading History:" : "Electricity Reading History:"
-        doc.text(historyTitle, 20, yPos)
-        doc.setFont(undefined, 'normal')
-        yPos += 15
-
-        // Create table headers
-        const tableStartY = yPos
-        const colWidths = [25, 35, 35, 25, 30, 35] // Date, Prev, Current, Units, Rate, Amount
-        const colPositions = [20, 45, 80, 115, 140, 170]
-        const rowHeight = 10
-
-        // Table headers
-        doc.setFontSize(9)
-        doc.setFont(undefined, 'bold')
-        doc.text("Date", colPositions[0], yPos)
-        doc.text("Previous", colPositions[1], yPos)
-        doc.text("Current", colPositions[2], yPos)
-        doc.text("Units", colPositions[3], yPos)
-        doc.text("Rate", colPositions[4], yPos)
-        doc.text("Amount", colPositions[5], yPos)
-        
-        // Draw header line
-        yPos += 3
-        doc.line(20, yPos, 200, yPos)
-        yPos += 7
-        
-        doc.setFont(undefined, 'normal')
-        
-        // Add reading history rows (limit to last 10 readings to prevent overflow)
-        const recentReadings = businessReadings.slice(-10)
-        
-        for (let i = 0; i < recentReadings.length; i++) {
-          const historyReading = recentReadings[i]
-          
-          // Check if we need to add a new page
-          if (yPos > 250) {
-            doc.addPage()
-            yPos = 30
-            
-            // Add page header
-            doc.setFontSize(12)
-            doc.setFont(undefined, 'bold')
-            const continuedTitle = reading.meter_type === "gas" ? "Gas Reading History (continued):" : "Electricity Reading History (continued):"
-            doc.text(continuedTitle, 20, yPos)
-            doc.setFont(undefined, 'normal')
-            yPos += 15
-            
-            // Re-add table headers
-            doc.setFontSize(9)
-            doc.setFont(undefined, 'bold')
-            doc.text("Date", colPositions[0], yPos)
-            doc.text("Previous", colPositions[1], yPos)
-            doc.text("Current", colPositions[2], yPos)
-            doc.text("Units", colPositions[3], yPos)
-            doc.text("Rate", colPositions[4], yPos)
-            doc.text("Amount", colPositions[5], yPos)
-            yPos += 3
-            doc.line(20, yPos, 200, yPos)
-            yPos += 7
-            doc.setFont(undefined, 'normal')
-          }
-          
-          // Highlight current reading
-          if (historyReading.id === reading.id) {
-            doc.setFillColor(255, 255, 0) // Yellow background
-            doc.rect(19, yPos - 7, 182, rowHeight, 'F')
-            doc.setTextColor(0, 0, 0) // Black text
-          }
-          
-          doc.setFontSize(8)
-          doc.text(historyReading.reading_date, colPositions[0], yPos)
-          doc.text(`${historyReading.previous_reading}`, colPositions[1], yPos)
-          doc.text(`${historyReading.current_reading}`, colPositions[2], yPos)
-          doc.text(`${historyReading.units_consumed}`, colPositions[3], yPos)
-          doc.text(`${historyReading.rate_per_unit.toFixed(1)}`, colPositions[4], yPos)
-          doc.text(`PKR ${historyReading.amount.toFixed(0)}`, colPositions[5], yPos)
-          
-          yPos += rowHeight
-          
-          // Reset background color after current reading
-          if (historyReading.id === reading.id) {
-            doc.setFillColor(255, 255, 255) // Reset to white
-          }
-        }
-        
-        // Draw table border
-        doc.line(20, tableStartY + 3, 200, tableStartY + 3) // Top border
-        doc.line(20, yPos - 3, 200, yPos - 3) // Bottom border
-        
-        yPos += 10
-        
-        // Summary of history
-        if (businessReadings.length > 10) {
-          doc.setFontSize(8)
-          doc.setTextColor(100, 100, 100)
-          doc.text(`* Showing last 10 readings out of ${businessReadings.length} total readings`, 20, yPos)
-          doc.setTextColor(0, 0, 0)
-          yPos += 10
-        }
-        
-        // Calculate totals
-        const totalUnits = businessReadings.reduce((sum, r) => sum + r.units_consumed, 0)
-        const totalAmount = businessReadings.reduce((sum, r) => sum + r.amount, 0)
-        
-        doc.setFontSize(10)
-        doc.text(`Total Historical Consumption: ${totalUnits.toFixed(0)} units`, 20, yPos)
-        yPos += 8
-        doc.text(`Total Historical Amount: PKR ${totalAmount.toFixed(2)}`, 20, yPos)
-        yPos += 15
-      }
-
-      // Payment status box
-      const statusColor = reading.payment_status === 'paid' ? [34, 197, 94] : [234, 179, 8] // green for paid, yellow for pending
-      doc.setFillColor(...statusColor)
-      doc.rect(20, yPos, 170, 15, 'F')
-      doc.setTextColor(255, 255, 255) // White text
-      doc.setFontSize(12)
-      doc.setFont(undefined, 'bold')
-      doc.text(`Payment Status: ${reading.payment_status ? reading.payment_status.toUpperCase() : 'PENDING'}`, 25, yPos + 10)
-      doc.setTextColor(0, 0, 0) // Reset to black
-      doc.setFont(undefined, 'normal')
-      yPos += 25
-
-      // Footer
-      doc.setFontSize(10)
-      doc.text("Thank you for your business!", 105, yPos, { align: "center" })
-      if (reading.payment_status !== 'paid') {
-        doc.text("Please settle this invoice at your earliest convenience.", 105, yPos + 10, { align: "center" })
-      }
-      doc.text("For any queries, please contact the management office.", 105, yPos + 20, { align: "center" })
-
-      // Download the PDF
-      const meterType = reading.meter_type === "gas" ? "Gas" : "Electricity"
-      const fileName = `${meterType}_Meter_Reading_Invoice_${invoiceNumber.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`
-      doc.save(fileName)
+      // Generate PDF using AutoTable
+      await generateElectricityBillPDF(billData)
       
     } catch (error) {
-      console.error("[v0] Error generating meter reading PDF:", error)
+      console.error("Error generating meter reading PDF:", error)
       setError("Failed to generate meter reading invoice. Please try again.")
     }
   }
@@ -931,20 +733,8 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
 
   const downloadPDF = async (bill: DBBill) => {
     try {
-      // Import jsPDF dynamically with error handling
-      const jsPDFModule = await import("jspdf")
-      const jsPDF = jsPDFModule.jsPDF
-      
-      if (!jsPDF) {
-        throw new Error("jsPDF not loaded properly")
-      }
-
-      const doc = new jsPDF()
       const business = businesses.find((b) => b.id === bill.business_id)
       
-      // Get terms for this bill
-      const billTerms = await getBillTerms(bill)
-
       // Get business information for branding
       let businessInfo: Information | null = null
       try {
@@ -953,164 +743,138 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
         console.log("No business information found, using default branding")
       }
 
-      let headerYPos = 20
+      // Determine bill type based on bill number
+      const isRentBill = bill.bill_number.startsWith('RENT')
+      const isMaintenanceBill = bill.bill_number.startsWith('MAINT')
+      const isGasBill = bill.bill_number.startsWith('GAS')
+      const isElectricityBill = bill.bill_number.startsWith('ELE')
 
-      // Add logo if available
-      if (businessInfo?.logo_url) {
-        try {
-          // Create an image element to load the logo
-          const img = new Image()
-          img.crossOrigin = "anonymous"
+      // Get historical bills for the business (last 12)
+      const businessBills = bills
+        .filter(b => b.business_id === bill.business_id && b.id !== bill.id)
+        .sort((a, b) => new Date(b.bill_date).getTime() - new Date(a.bill_date).getTime())
+        .slice(0, 12)
+        .map(b => ({
+          reading_date: b.bill_date,
+          amount: b.total_amount,
+          units_consumed: 0, // Not applicable for regular bills
+          payment_status: b.status
+        }))
 
-          await new Promise((resolve, reject) => {
-            img.onload = resolve
-            img.onerror = reject
-            img.src = businessInfo.logo_url!
-          })
+      // Calculate arrears (unpaid previous bills)
+      const arrears = bills
+        .filter(b => 
+          b.business_id === bill.business_id && 
+          b.status === 'pending' && 
+          b.id !== bill.id &&
+          new Date(b.bill_date) < new Date(bill.bill_date)
+        )
+        .reduce((sum, b) => sum + b.total_amount, 0)
 
-          // Add logo to PDF (centered, 30x30 size)
-          const canvas = document.createElement('canvas')
-          const ctx = canvas.getContext('2d')
-          canvas.width = 30
-          canvas.height = 30
-          ctx?.drawImage(img, 0, 0, 30, 30)
+      // Calculate late surcharge (10% of arrears if any)
+      const lateSurcharge = arrears > 0 ? arrears * 0.1 : 0
 
-          const logoDataUrl = canvas.toDataURL('image/png')
-          doc.addImage(logoDataUrl, 'PNG', 90, headerYPos - 5, 30, 30)
-          headerYPos += 35
-        } catch (logoError) {
-          console.log("Failed to load logo, proceeding without it")
-        }
-      }
-
-      // Header with business name or default
-      doc.setFontSize(20)
-      const businessName = businessInfo?.business_name || "PLAZA MANAGEMENT"
-      doc.text(businessName.toUpperCase(), 105, headerYPos, { align: "center" })
-
-      doc.setFontSize(14)
-      // Determine bill type based on bill number or management mode
-      const isRentBill = bill.bill_number.startsWith('RENT') || isRentManagement
-      const billTypeText = isRentBill ? "Rent Bill" : "Electricity & Maintenance Bill"
-      doc.text(billTypeText, 105, headerYPos + 10, { align: "center" })
-
-      // Add contact info if available
-      if (businessInfo?.contact_email || businessInfo?.contact_phone) {
-        doc.setFontSize(10)
-        let contactText = ""
-        if (businessInfo.contact_email) contactText += businessInfo.contact_email
-        if (businessInfo.contact_phone) {
-          if (contactText) contactText += " | "
-          contactText += businessInfo.contact_phone
-        }
-        doc.text(contactText, 105, headerYPos + 20, { align: "center" })
-        headerYPos += 10
-      }
-
-      // Bill details (adjust position based on header height)
-      const billDetailsYPos = headerYPos + 30
-      doc.setFontSize(12)
-      doc.text("Bill To:", 20, billDetailsYPos)
-      doc.text(getBusinessName(bill.business_id) || "Unknown Business", 20, billDetailsYPos + 10)
-      doc.text(`Shop: ${getBusinessShop(bill.business_id) || "Unknown Shop"}`, 20, billDetailsYPos + 20)
-      doc.text(`${getFloorName(business?.floor_number || 1) || "Floor 1"}`, 20, billDetailsYPos + 30)
-
-      // Bill info (right side)
-      doc.text(`Bill No: ${bill.bill_number}`, 120, billDetailsYPos)
-      doc.text(`Date: ${bill.bill_date}`, 120, billDetailsYPos + 10)
-      doc.text(`Due Date: ${bill.due_date}`, 120, billDetailsYPos + 20)
-
-      // Charges breakdown (adjust position)
-      let yPos = billDetailsYPos + 50
-      doc.text("Charges Breakdown:", 20, yPos)
-      yPos += 10
-
-      // For rent bills, only show rent amount (maintenance_charges is the rent amount for RENT bills)
+      // Use appropriate PDF generator based on bill type
       if (isRentBill) {
-        doc.text(`Rent Amount: PKR ${bill.maintenance_charges.toFixed(2)}`, 20, yPos)
-        yPos += 10
+        const rentBillData: RentBillData = {
+          reading: {
+            id: bill.id,
+            business_id: bill.business_id,
+            bill_number: bill.bill_number,
+            reading_date: bill.bill_date,
+            payment_status: bill.status,
+            amount: bill.total_amount,
+            monthly_rent: bill.maintenance_charges, // Rent amount is stored in maintenance_charges for RENT bills
+            created_at: bill.bill_date
+          },
+          businessReadings: businessBills,
+          business: business,
+          businessInfo: businessInfo || undefined,
+          getBusinessName,
+          getBusinessShop,
+          getFloorName,
+          arrears,
+          lateSurcharge
+        }
+        await generateRentBillPDF(rentBillData)
+      } else if (isMaintenanceBill) {
+        const maintenanceBillData: MaintenanceBillData = {
+          reading: {
+            id: bill.id,
+            business_id: bill.business_id,
+            bill_number: bill.bill_number,
+            reading_date: bill.bill_date,
+            payment_status: bill.status,
+            amount: bill.total_amount,
+            maintenance_charge: bill.maintenance_charges,
+            created_at: bill.bill_date
+          },
+          businessReadings: businessBills,
+          business: business,
+          businessInfo: businessInfo || undefined,
+          getBusinessName,
+          getBusinessShop,
+          getFloorName,
+          arrears,
+          lateSurcharge
+        }
+        await generateMaintenanceBillPDF(maintenanceBillData)
+      } else if (isGasBill) {
+        // For gas bills, we need meter reading data which might not be in regular bills table
+        // For now, use dummy data, but ideally this should come from meter_readings table
+        const gasBillData: GasBillData = {
+          reading: {
+            id: bill.id,
+            business_id: bill.business_id,
+            bill_number: bill.bill_number,
+            reading_date: bill.bill_date,
+            payment_status: bill.status,
+            previous_reading: 0,
+            current_reading: 0,
+            units_consumed: 0,
+            amount: bill.total_amount,
+            rate_per_unit: 0,
+            meter_number: business?.shop_number,
+            created_at: bill.bill_date
+          },
+          businessReadings: businessBills,
+          business: business,
+          businessInfo: businessInfo || undefined,
+          getBusinessName,
+          getBusinessShop,
+          getFloorName,
+          arrears,
+          lateSurcharge
+        }
+        await generateGasBillPDF(gasBillData)
       } else {
-        // For non-rent bills, show all applicable charges
-        doc.text(`Rent Amount: PKR ${bill.rent_amount.toFixed(2)}`, 20, yPos)
-        yPos += 10
-
-        if (bill.electricity_charges > 0) {
-          doc.text(`Electricity Charges: PKR ${bill.electricity_charges.toFixed(2)}`, 20, yPos)
-          yPos += 10
+        // Default to electricity bill format for backward compatibility
+        const electricityBillData: BillData = {
+          reading: {
+            id: bill.id,
+            business_id: bill.business_id,
+            bill_number: bill.bill_number,
+            reading_date: bill.bill_date,
+            payment_status: bill.status,
+            previous_reading: 0,
+            current_reading: 0,
+            units_consumed: 0,
+            amount: bill.total_amount,
+            rate_per_unit: 0,
+            meter_number: business?.shop_number,
+            created_at: bill.bill_date
+          },
+          businessReadings: businessBills,
+          business: business,
+          businessInfo: businessInfo || undefined,
+          getBusinessName,
+          getBusinessShop,
+          getFloorName,
+          arrears,
+          lateSurcharge
         }
-
-        if (bill.maintenance_charges > 0) {
-          doc.text(`Maintenance Charges: PKR ${bill.maintenance_charges.toFixed(2)}`, 20, yPos)
-          yPos += 10
-        }
+        await generateElectricityBillPDF(electricityBillData)
       }
-
-      // Show additional charges for all bill types (if applicable)
-      if (bill.water_charges > 0) {
-        doc.text(`Water Charges: PKR ${bill.water_charges.toFixed(2)}`, 20, yPos)
-        yPos += 10
-      }
-
-      if (bill.other_charges > 0) {
-        doc.text(`Other Charges: PKR ${bill.other_charges.toFixed(2)}`, 20, yPos)
-        yPos += 10
-      }
-
-      // Total
-      yPos += 10
-      doc.setFontSize(14)
-      doc.text(`Total Amount: PKR ${bill.total_amount.toFixed(2)}`, 20, yPos)
-
-      // Terms and conditions section (if any terms are associated with this bill)
-      if (billTerms.length > 0) {
-        yPos += 20
-        doc.setFontSize(12)
-        doc.setFont(undefined, 'bold')
-        doc.text("Terms and Conditions:", 20, yPos)
-        doc.setFont(undefined, 'normal')
-        yPos += 10
-        
-        doc.setFontSize(9)
-        billTerms.forEach((term, index) => {
-          // Check if we need a new page
-          if (yPos > 250) {
-            doc.addPage()
-            yPos = 30
-            doc.setFontSize(12)
-            doc.setFont(undefined, 'bold')
-            doc.text("Terms and Conditions (continued):", 20, yPos)
-            doc.setFont(undefined, 'normal')
-            yPos += 15
-            doc.setFontSize(9)
-          }
-          
-          // Add term title
-          doc.setFont(undefined, 'bold')
-          doc.text(`${index + 1}. ${term.title}`, 20, yPos)
-          doc.setFont(undefined, 'normal')
-          yPos += 5
-          
-          // Add term description if available
-          if (term.description) {
-            const descriptionLines = doc.splitTextToSize(term.description, 170)
-            doc.text(descriptionLines, 25, yPos)
-            yPos += descriptionLines.length * 4
-          }
-          
-          yPos += 5 // Space between terms
-        })
-        
-        yPos += 10
-      }
-
-      // Footer
-      yPos += 20
-      doc.setFontSize(10)
-      doc.text("Thank you for your business!", 105, yPos, { align: "center" })
-      doc.text("Please pay by the due date to avoid late fees.", 105, yPos + 10, { align: "center" })
-
-      // Download the PDF
-      doc.save(`Bill_${bill.bill_number}.pdf`)
     } catch (error) {
       console.error("[v0] Error generating PDF:", error)
       setError("Failed to generate PDF. Please try again.")
@@ -1127,9 +891,12 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
       businessId: bill.business_id,
       billType: bill.bill_number.startsWith('RENT') ? 'rent' :
         bill.bill_number.startsWith('ELE') ? 'electricity' :
-          bill.bill_number.startsWith('MAIN') ? 'maintenance' : 'combined',
+        bill.bill_number.startsWith('GAS') ? 'gas' :
+        bill.bill_number.startsWith('MAIN') ? 'maintenance' : 'combined',
       electricityUnits: "", // Will be calculated from electricity_charges if needed
       electricityRate: "8.5", // Default rate
+      gasUnits: "", // Added to satisfy state shape
+      gasRate: "150.0", // Default gas rate
       maintenanceAmount: bill.maintenance_charges?.toString() || "",
       maintenanceDescription: "", // Not stored in database
       waterCharges: bill.water_charges?.toString() || "",
@@ -1169,14 +936,13 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
       // Reload bills to show updated data
       await loadBillData()
 
-      // Reset form and close edit mode
-      setIsEditMode(false)
-      setEditingBill(null)
       setNewBill({
         businessId: "",
         billType: "electricity",
         electricityUnits: "",
         electricityRate: "8.5",
+        gasUnits: "",
+        gasRate: "150.0",
         maintenanceAmount: "",
         maintenanceDescription: "",
         waterCharges: "",
@@ -1622,7 +1388,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
   }
 
   const renderGenerateBill = () => (
-    <Card className="border-gray-200">
+    <Card className="border-0">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold">
@@ -2055,7 +1821,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
   )
 
   const renderBillListCard = () => (
-    <Card className="border-gray-200">
+    <Card className="border-0">
       <CardHeader>
         <CardTitle className="text-lg font-semibold flex items-center justify-between">
           {isRentManagement && billsSubTab === "all" && "All Rent Bills"}
@@ -2068,22 +1834,6 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
           {isGasManagement && billsSubTab === "paid" && "Paid Gas Bills"}
           {isGasManagement && billsSubTab === "unpaid" && "Unpaid Gas Bills"}
           <div className="flex items-center gap-2">
-            {(isElectricityManagement || isGasManagement) && !isMobile && (
-              <Button
-                onClick={() => {
-                  // Switch to bill generation mode
-                  if (isElectricityManagement) {
-                    window.location.hash = 'electricity-generate'
-                  } else if (isGasManagement) {
-                    window.location.hash = 'gas-generate'
-                  }
-                }}
-                className="bg-black text-white hover:bg-gray-800"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {isElectricityManagement ? "Generate New Electricity Bill" : "Generate New Gas Bill"}
-              </Button>
-            )}
             <Search className="h-4 w-4 text-gray-500" />
             <Input
               placeholder="Search bills..."
@@ -2250,7 +2000,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
             {/* Meter Readings - only for electricity management */}
             {isElectricityManagement && getCurrentMeterReadings().map((reading) => {
               return (
-                <TableRow key={`meter-${reading.id}`} className="bg-green-50">
+                <TableRow key={`meter-${reading.id}`} className="bg-green-50 dark:bg-green-950/20">
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       <span>{reading.bill_number || "MR-" + reading.id.slice(-6).toUpperCase()}</span>
@@ -2351,7 +2101,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
             {/* Gas Meter Readings - only for gas management */}
             {isGasManagement && getCurrentGasMeterReadings().map((reading) => {
               return (
-                <TableRow key={`gas-meter-${reading.id}`} className="bg-orange-50">
+                <TableRow key={`gas-meter-${reading.id}`} className="bg-orange-50 dark:bg-orange-950/20">
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       <span>{reading.bill_number || "GMR-" + reading.id.slice(-6).toUpperCase()}</span>
@@ -2722,7 +2472,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
 
     // Default behavior for non-rent management
     return (
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-lg font-semibold flex items-center justify-between">
             All Bills

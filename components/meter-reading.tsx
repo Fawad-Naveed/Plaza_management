@@ -334,8 +334,8 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
 
   const renderReadingSheet = () => (
     <div className="space-y-6">
-      <Card className="border-gray-200 shadow-sm">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-0">
           <CardTitle className="text-xl font-bold flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-500 rounded-lg">
@@ -359,7 +359,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
                 value={readingSheet.month}
                 onValueChange={(value) => setReadingSheet({ ...readingSheet, month: value })}
               >
-                <SelectTrigger className="w-40 h-11 bg-white border-gray-200 shadow-sm">
+                <SelectTrigger className="w-40 h-11 bg-white border-0 shadow-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -390,7 +390,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
                 value={readingSheet.year}
                 onValueChange={(value) => setReadingSheet({ ...readingSheet, year: value })}
               >
-                <SelectTrigger className="w-32 h-11 bg-white border-gray-200 shadow-sm">
+                <SelectTrigger className="w-32 h-11 bg-white border-0 shadow-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -404,7 +404,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 overflow-hidden">
+          <div className="rounded-lg border border-0 overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50 hover:bg-gray-50">
@@ -454,7 +454,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
                         value={reading.currentReading}
                         onChange={(e) => updateReadingSheet(index, 'currentReading', e.target.value)}
                         placeholder="Enter reading"
-                        className="w-36 h-11 text-center font-medium border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className="w-36 h-11 text-center font-medium border-0 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                       />
                     </TableCell>
                     <TableCell className="py-4">
@@ -463,7 +463,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
                         value={reading.unitsConsumed}
                         onChange={(e) => updateReadingSheet(index, 'unitsConsumed', e.target.value)}
                         placeholder="Enter units"
-                        className="w-36 h-11 text-center font-medium border-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200"
+                        className="w-36 h-11 text-center font-medium border-0 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200"
                       />
                     </TableCell>
                     <TableCell className="py-4">
@@ -509,7 +509,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
             </div>
           )}
 
-          <div className="mt-8 p-6 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border border-gray-200">
+          <div className="mt-8 p-6 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border border-0">
             <div className="flex justify-between items-center">
               <div className="flex gap-8">
                 <div className="text-center">
@@ -568,15 +568,15 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
     
     return (
       <div className="space-y-6">
-        <Card className="border-gray-200 shadow-sm">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-100">
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-b border-0 dark:border-gray-800">
             <CardTitle className="text-xl font-bold flex items-center gap-3">
               <div className="p-2 bg-green-500 rounded-lg">
                 <TrendingUp className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Add New Reading</h2>
-                <p className="text-sm text-gray-600 font-normal">Record electricity meter reading for a business</p>
+                <h2 className="text-xl font-bold">Add New Reading</h2>
+                <p className="text-sm text-muted-foreground font-normal">Record electricity meter reading for a business</p>
               </div>
             </CardTitle>
           </CardHeader>
@@ -588,7 +588,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
                   value={newReading.businessId}
                   onValueChange={(value) => setNewReading({ ...newReading, businessId: value })}
                 >
-                  <SelectTrigger className="h-11 bg-white border-gray-200 shadow-sm">
+                  <SelectTrigger className="h-11 bg-white border-0 shadow-sm">
                     <SelectValue placeholder="Select a business" />
                   </SelectTrigger>
                   <SelectContent>
@@ -613,7 +613,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
                   value={newReading.currentReading}
                   onChange={(e) => setNewReading({ ...newReading, currentReading: e.target.value })}
                   placeholder="Enter current meter reading"
-                  className="h-11 text-center font-medium border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                  className="h-11 text-center font-medium border-0 focus:border-green-500 focus:ring-2 focus:ring-green-200"
                 />
               </div>
               <div className="space-y-2">
@@ -624,7 +624,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
                   value={newReading.unitsConsumed}
                   onChange={(e) => setNewReading({ ...newReading, unitsConsumed: e.target.value })}
                   placeholder="Enter units consumed"
-                  className="h-11 text-center font-medium border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                  className="h-11 text-center font-medium border-0 focus:border-green-500 focus:ring-2 focus:ring-green-200"
                 />
               </div>
               <div className="space-y-2">
@@ -634,7 +634,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
                   type="date"
                   value={newReading.readingDate}
                   onChange={(e) => setNewReading({ ...newReading, readingDate: e.target.value })}
-                  className="h-11 border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                  className="h-11 border-0 focus:border-green-500 focus:ring-2 focus:ring-green-200"
                 />
               </div>
               <div className="space-y-2">
@@ -646,13 +646,13 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
                   value={newReading.rate}
                   onChange={(e) => setNewReading({ ...newReading, rate: e.target.value })}
                   placeholder="8.5"
-                  className="h-11 text-center font-medium border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                  className="h-11 text-center font-medium border-0 focus:border-green-500 focus:ring-2 focus:ring-green-200"
                 />
               </div>
             </div>
 
             {newReading.businessId && (
-              <div className="p-6 bg-gradient-to-r from-gray-50 to-green-50 rounded-xl border border-gray-200">
+              <div className="p-6 bg-gradient-to-r from-gray-50 to-green-50 rounded-xl border border-0">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <Calculator className="h-5 w-5 text-green-600" />
                   Reading Summary
@@ -716,7 +716,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
         </CardContent>
       </Card>
 
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Recent Readings</CardTitle>
         </CardHeader>

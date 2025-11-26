@@ -69,7 +69,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               </div>
               
               {this.state.error?.name && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <div className="bg-gray-50 border border-0 rounded-lg p-4">
                   <p className="text-sm text-gray-700">
                     <strong>Error Type:</strong> {this.state.error.name}
                   </p>

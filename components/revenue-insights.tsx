@@ -69,7 +69,7 @@ export function RevenueInsights() {
   const [totalDebt, setTotalDebt] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [timePeriod, setTimePeriod] = useState<'month' | 'quarter' | 'year' | 'all' | 'custom'>('all')
+  const [timePeriod, setTimePeriod] = useState<'month' | 'quarter' | 'year' | 'all' | 'custom'>('month')
   const [selectedMonth, setSelectedMonth] = useState<string>('')
   
   // Store the original unfiltered data
@@ -207,7 +207,7 @@ export function RevenueInsights() {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
-        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+        <div className="bg-white p-4 border border-0 rounded-lg shadow-lg">
           <p className="font-semibold text-gray-800">{label}</p>
           <div className="space-y-1 mt-2">
             <p className="text-sm text-gray-600">
@@ -254,12 +254,12 @@ export function RevenueInsights() {
   return (
     <div className="space-y-6">
       {/* Filter Section */}
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardContent className="p-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-2">
-              <Filter className="h-5 w-5 text-gray-600" />
-              <span className="font-medium text-gray-700">Filters:</span>
+              <Filter className="h-5 w-5" />
+              <span className="font-medium">Filters:</span>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <Select value={timePeriod} onValueChange={(value: any) => handlePeriodChange(value)}>
@@ -322,15 +322,15 @@ export function RevenueInsights() {
       {/* Revenue Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Revenue Card */}
-        <Card className="border-gray-200 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
+        <Card className="border-0 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-blue-500 rounded-lg">
                 <DollarSign className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold text-black">
+                <p className="text-sm font-medium">Total Revenue</p>
+                <p className="text-2xl font-bold">
                   {formatCurrency(revenueStats?.totalRevenue || 0)}
                 </p>
               </div>
@@ -339,19 +339,19 @@ export function RevenueInsights() {
         </Card>
 
         {/* Rent Revenue Card */}
-        <Card className="border-gray-200 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
+        <Card className="border-0 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-green-600 rounded-lg">
                 <Home className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Rent Revenue</p>
+                <p className="text-sm font-medium">Rent Revenue</p>
                 <p className="text-2xl font-bold text-green-600">
                   {formatCurrency(revenueStats?.revenueByComponent.rent || 0)}
                 </p>
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     {revenueStats?.billCountsByComponent?.rent || 0} paid bills
                   </p>
                   {(revenueStats?.unpaidByComponent?.rent || 0) > 0 && (
@@ -366,19 +366,19 @@ export function RevenueInsights() {
         </Card>
 
         {/* Electricity Revenue Card */}
-        <Card className="border-gray-200 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
+        <Card className="border-0 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-yellow-500 rounded-lg">
                 <Zap className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Electricity</p>
+                <p className="text-sm font-medium">Electricity</p>
                 <p className="text-2xl font-bold text-yellow-600">
                   {formatCurrency(revenueStats?.revenueByComponent.electricity || 0)}
                 </p>
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     {revenueStats?.billCountsByComponent?.electricity || 0} paid bills
                   </p>
                   {(revenueStats?.unpaidByComponent?.electricity || 0) > 0 && (
@@ -393,19 +393,19 @@ export function RevenueInsights() {
         </Card>
 
         {/* Maintenance Revenue Card */}
-        <Card className="border-gray-200 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
+        <Card className="border-0 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-purple-600 rounded-lg">
                 <Wrench className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Maintenance</p>
+                <p className="text-sm font-medium">Maintenance</p>
                 <p className="text-2xl font-bold text-purple-600">
                   {formatCurrency(revenueStats?.revenueByComponent.maintenance || 0)}
                 </p>
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     {revenueStats?.billCountsByComponent?.maintenance || 0} paid bills
                   </p>
                   {(revenueStats?.unpaidByComponent?.maintenance || 0) > 0 && (
@@ -423,19 +423,19 @@ export function RevenueInsights() {
       {/* Additional Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Gas Revenue Card */}
-        <Card className="border-gray-200 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
+        <Card className="border-0 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-orange-500 rounded-lg">
                 <Flame className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Gas Revenue</p>
+                <p className="text-sm font-medium">Gas Revenue</p>
                 <p className="text-2xl font-bold text-orange-600">
                   {formatCurrency(revenueStats?.revenueByComponent.gas || 0)}
                 </p>
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     {revenueStats?.billCountsByComponent?.gas || 0} paid bills
                   </p>
                   {(revenueStats?.unpaidByComponent?.gas || 0) > 0 && (
@@ -450,36 +450,36 @@ export function RevenueInsights() {
         </Card>
 
         {/* Debt Card - Waved Off Bills */}
-        <Card className="border-gray-200 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
+        <Card className="border-0 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-red-500 rounded-lg">
                 <AlertTriangle className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Debt</p>
+                <p className="text-sm font-medium">Debt</p>
                 <p className="text-2xl font-bold text-red-600">
                   {formatCurrency(totalDebt || 0)}
                 </p>
-                <p className="text-xs text-gray-500">Waved off bills total</p>
+                <p className="text-xs text-muted-foreground">Waved off bills total</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Total Bills Generated */}
-        <Card className="border-gray-200 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
+        <Card className="border-0 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-gray-600 rounded-lg">
                 <FileText className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Bills Generated</p>
-                <p className="text-2xl font-bold text-gray-800">
+                <p className="text-sm font-medium">Bills Generated</p>
+                <p className="text-2xl font-bold">
                   {revenueStats?.totalBillsGenerated || 0}
                 </p>
-                <p className="text-xs text-gray-500">Total bills created</p>
+                <p className="text-xs text-muted-foreground">Total bills created</p>
               </div>
             </div>
           </CardContent>
@@ -487,7 +487,7 @@ export function RevenueInsights() {
       </div>
 
       {/* Revenue Trends Chart */}
-      <Card className="border-gray-200 hover:scale-[1.01] transition-all duration-300 ease-out hover:shadow-xl">
+      <Card className="border-0 hover:scale-[1.01] transition-all duration-300 ease-out hover:shadow-xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />

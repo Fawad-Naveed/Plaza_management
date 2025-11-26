@@ -241,7 +241,108 @@ export interface Information {
   contact_phone?: string
   address?: string
   website?: string
+  company_address?: string // Complete company address for bills and invoices
   rent_bill_generation_day?: number // Day of month (1-31) when rent bills should be generated
+  created_at: string
+  updated_at: string
+}
+
+// ============================================
+// EXPENSE TRACKING INTERFACES
+// ============================================
+
+// Staff Management
+export interface Staff {
+  id: string
+  name: string
+  phone: string
+  email?: string
+  id_card_number: string
+  category: "security" | "admin" | "maintenance" | "other"
+  salary_amount: number
+  hire_date: string
+  status: "active" | "inactive" | "terminated"
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface StaffSalaryRecord {
+  id: string
+  staff_id: string
+  month: number // 1-12
+  year: number
+  amount: number
+  payment_date?: string
+  payment_method?: "cash" | "cheque" | "bank_transfer" | "upi" | "card"
+  reference_number?: string
+  status: "pending" | "paid" | "cancelled"
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+// Fixed Expenses
+export interface PlazaUtilityBill {
+  id: string
+  utility_type: "electricity" | "water" | "gas" | "property_tax"
+  title: string
+  description?: string
+  amount: number
+  bill_date: string
+  due_date: string
+  month?: number // 1-12
+  year: number
+  payment_date?: string
+  payment_method?: "cash" | "cheque" | "bank_transfer" | "upi" | "card"
+  reference_number?: string
+  status: "pending" | "paid" | "overdue" | "cancelled"
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface FixedExpenseConfig {
+  id: string
+  expense_type: "property_tax" | "insurance" | "other"
+  title: string
+  description?: string
+  amount: number
+  frequency: "monthly" | "quarterly" | "semi_annual" | "annual"
+  next_due_date: string
+  reminder_date?: string
+  auto_generate: boolean
+  status: "active" | "inactive" | "completed"
+  created_at: string
+  updated_at: string
+}
+
+// Variable Expenses
+export interface VariableExpense {
+  id: string
+  title: string
+  description?: string
+  amount: number
+  expense_date: string
+  category: "repairs" | "supplies" | "maintenance" | "misc" | "emergency" | "other"
+  receipt_image_url?: string
+  payment_method?: "cash" | "cheque" | "bank_transfer" | "upi" | "card"
+  reference_number?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+// Reminders
+export interface ExpenseReminder {
+  id: string
+  expense_type: "staff_salary" | "utility_bill" | "property_tax" | "fixed_expense" | "other"
+  reference_id?: string
+  reminder_date: string
+  title: string
+  description?: string
+  amount?: number
+  status: "pending" | "completed" | "dismissed"
   created_at: string
   updated_at: string
 }

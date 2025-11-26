@@ -272,20 +272,20 @@ export function BusinessQueries() {
   const counts = getStatusCounts()
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-card rounded-xl shadow-sm border border-border p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <HelpCircle className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Queries & Support</h1>
-                <p className="text-gray-600">Submit and track your queries</p>
+                <h1 className="text-2xl font-bold text-foreground">Queries & Support</h1>
+                <p className="text-muted-foreground">Submit and track your queries</p>
                 {business && (
-                  <p className="text-sm text-gray-500">{business.name} • Shop: {business.shop_number}</p>
+                  <p className="text-sm text-muted-foreground">{business.name} • Shop: {business.shop_number}</p>
                 )}
               </div>
             </div>
@@ -405,7 +405,7 @@ export function BusinessQueries() {
                   <AlertCircle className="h-5 w-5 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Open</p>
+                  <p className="text-sm text-muted-foreground">Open</p>
                   <p className="text-2xl font-bold text-red-600">{counts.open}</p>
                 </div>
               </div>
@@ -419,7 +419,7 @@ export function BusinessQueries() {
                   <Clock className="h-5 w-5 text-yellow-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">In Progress</p>
+                  <p className="text-sm text-muted-foreground">In Progress</p>
                   <p className="text-2xl font-bold text-yellow-600">{counts.inProgress}</p>
                 </div>
               </div>
@@ -433,7 +433,7 @@ export function BusinessQueries() {
                   <CheckCircle className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Resolved</p>
+                  <p className="text-sm text-muted-foreground">Resolved</p>
                   <p className="text-2xl font-bold text-green-600">{counts.resolved}</p>
                 </div>
               </div>
@@ -447,7 +447,7 @@ export function BusinessQueries() {
                   <MessageSquare className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total Queries</p>
+                  <p className="text-sm text-muted-foreground">Total Queries</p>
                   <p className="text-2xl font-bold text-blue-600">{counts.total}</p>
                 </div>
               </div>
@@ -473,13 +473,13 @@ export function BusinessQueries() {
               <CardContent>
                 {loading ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                    <span className="ml-2 text-gray-600">Loading queries...</span>
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-muted-foreground">Loading queries...</span>
                   </div>
                 ) : queries.length === 0 ? (
                   <div className="text-center py-8">
-                    <HelpCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 mb-4">No queries submitted yet.</p>
+                    <HelpCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground mb-4">No queries submitted yet.</p>
                     <Button onClick={() => setShowNewQueryDialog(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Submit Your First Query
@@ -502,8 +502,8 @@ export function BusinessQueries() {
                         <TableRow key={query.id}>
                           <TableCell>
                             <div>
-                              <p className="font-medium text-gray-900">{query.title}</p>
-                              <p className="text-sm text-gray-600 truncate max-w-xs">
+                              <p className="font-medium text-foreground">{query.title}</p>
+                              <p className="text-sm text-muted-foreground truncate max-w-xs">
                                 {query.description}
                               </p>
                             </div>
@@ -542,33 +542,33 @@ export function BusinessQueries() {
                                 </DialogHeader>
                                 <div className="space-y-4">
                                   <div>
-                                    <h3 className="font-semibold text-lg">{query.title}</h3>
-                                    <p className="text-gray-600 mt-2">{query.description}</p>
+                                    <h3 className="font-semibold text-lg text-foreground">{query.title}</h3>
+                                    <p className="text-muted-foreground mt-2">{query.description}</p>
                                   </div>
                                   
                                   <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                      <p className="text-sm text-gray-600">Category</p>
+                                      <p className="text-sm text-muted-foreground">Category</p>
                                       <div className="flex items-center gap-2 mt-1">
                                         {getCategoryIcon(query.category)}
                                         <span className="capitalize font-medium">{query.category}</span>
                                       </div>
                                     </div>
                                     <div>
-                                      <p className="text-sm text-gray-600">Priority</p>
+                                      <p className="text-sm text-muted-foreground">Priority</p>
                                       <div className="mt-1">
                                         {getPriorityBadge(query.priority)}
                                       </div>
                                     </div>
                                     <div>
-                                      <p className="text-sm text-gray-600">Status</p>
+                                      <p className="text-sm text-muted-foreground">Status</p>
                                       <div className="mt-1">
                                         {getStatusBadge(query.status, query.id)}
                                       </div>
                                     </div>
                                     <div>
-                                      <p className="text-sm text-gray-600">Submitted</p>
-                                      <p className="font-medium">{formatDate(query.createdAt)}</p>
+                                      <p className="text-sm text-muted-foreground">Submitted</p>
+                                      <p className="font-medium text-foreground">{formatDate(query.createdAt)}</p>
                                     </div>
                                   </div>
 

@@ -129,7 +129,7 @@ export function Sidebar({
       {/* Sidebar Container */}
       <div
         className={`
-          fixed left-0 top-0 h-full bg-black text-white z-50 flex flex-col overflow-hidden shadow-xl max-h-screen
+          fixed left-0 top-0 h-full bg-black dark:bg-black text-white z-50 flex flex-col overflow-hidden shadow-xl max-h-screen
           transition-all duration-300 ease-in-out
           ${
             isMobile 
@@ -144,7 +144,7 @@ export function Sidebar({
         onTouchEnd={handleTouchEndWithSwipe}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-black min-h-[64px]">
+        <div className="flex items-center justify-between p-4 border-b border-gray-700 dark:border-gray-700 bg-black dark:bg-black min-h-[64px]">
           <div className="flex items-center gap-3">
             {isMobile && (
               <div className="flex items-center justify-center w-8 h-8 bg-black-600 rounded-lg">

@@ -33,7 +33,7 @@ export function BusinessPortal() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-background overflow-hidden">
       <BusinessSidebar
         activeSection={activeSection}
         onSectionChange={handleSectionChange}
@@ -52,13 +52,13 @@ export function BusinessPortal() {
       }`}>
         {/* Mobile Header */}
         {isMobile && (
-          <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between lg:hidden">
-            <h1 className="text-lg font-semibold text-gray-900">Business Portal</h1>
+          <div className="bg-card border-b border-border px-4 py-3 flex items-center justify-between lg:hidden">
+            <h1 className="text-lg font-semibold text-foreground">Business Portal</h1>
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleSidebar}
-              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              className="text-muted-foreground hover:text-foreground hover:bg-accent"
             >
               <Menu className="h-5 w-5" />
             </Button>

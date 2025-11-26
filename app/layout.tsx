@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import './globals.css'
+import { ThemeProvider } from '@/components/theme-provider'
 
 export const metadata: Metadata = {
   title: 'Darbaal Plaza',
@@ -33,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={GeistSans.variable}>
+    <html lang="en" className={GeistSans.variable} suppressHydrationWarning>
       <head>
         {/* Preconnect to improve loading performance */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -47,17 +48,24 @@ export default function RootLayout({
         {/* Critical CSS - moved to globals.css for better performance */}
       </head>
       <body className={`font-sans antialiased ${GeistSans.variable} ${GeistMono.variable}`}>
-        {/* Skip to main content for accessibility and performance */}
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-0 focus:left-0 z-50 p-4 bg-primary text-primary-foreground"
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+          disableTransitionOnChange
         >
-          Skip to main content
-        </a>
-        
-        <div id="main-content">
-          {children}
-        </div>
+          {/* Skip to main content for accessibility and performance */}
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:absolute focus:top-0 focus:left-0 z-50 p-4 bg-primary text-primary-foreground"
+          >
+            Skip to main content
+          </a>
+          
+          <div id="main-content">
+            {children}
+          </div>
+        </ThemeProvider>
         
         {/* Performance monitoring script (only in development) */}
         {process.env.NODE_ENV === 'development' && (

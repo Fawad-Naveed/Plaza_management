@@ -6,14 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Upload, Save, Loader2, Building, Mail, Phone, Globe, MapPin, Calendar } from "lucide-react"
+import { Upload, Save, Loader2, Building, Mail, Phone, Globe, MapPin, Calendar, Moon, Sun } from "lucide-react"
 import { clientDb, type Information, getInformation, upsertInformation } from "@/lib/database"
+import { useTheme } from "next-themes"
 
 interface SettingsProps {
   onSettingsSaved?: () => void
 }
 
 export function Settings({ onSettingsSaved }: SettingsProps) {
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   const [information, setInformation] = useState<Information | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -27,8 +30,13 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
     contact_phone: "",
     address: "",
     website: "",
+    company_address: "",
     rent_bill_generation_day: "1",
   })
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     loadInformation()
@@ -49,6 +57,7 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
           contact_phone: data.contact_phone || "",
           address: data.address || "",
           website: data.website || "",
+          company_address: data.company_address || "",
           rent_bill_generation_day: data.rent_bill_generation_day?.toString() || "1",
         })
       }
@@ -112,8 +121,43 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-black">Settings</h1>
+        <h1 className="text-2xl font-bold">Settings</h1>
       </div>
+
+      {/* Dark Mode Toggle */}
+      <Card className="border-border bg-card">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label className="text-base font-semibold">Theme</Label>
+              <p className="text-sm text-muted-foreground">
+                Switch between light and dark mode
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="ml-4 min-w-[120px]"
+              disabled={!mounted}
+            >
+              {!mounted ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : theme === "dark" ? (
+                <>
+                  <Sun className="h-5 w-5 mr-2" />
+                  Light Mode
+                </>
+              ) : (
+                <>
+                  <Moon className="h-5 w-5 mr-2" />
+                  Dark Mode
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-md">
@@ -129,7 +173,7 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Business Information */}
-        <Card className="border-gray-200">
+        <Card className="border-0">
           <CardHeader>
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <Building className="h-5 w-5" />
@@ -186,7 +230,7 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
             {formData.logo_url && (
               <div className="space-y-2">
                 <Label>Logo Preview</Label>
-                <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
+                <div className="border border-0 rounded-md p-4 bg-gray-50">
                   <img
                     src={formData.logo_url}
                     alt="Logo preview"
@@ -203,7 +247,7 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
         </Card>
 
         {/* Contact Information */}
-        <Card className="border-gray-200">
+        <Card className="border-0">
           <CardHeader>
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <Mail className="h-5 w-5" />
@@ -268,6 +312,24 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
                 rows={3}
               />
             </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="companyAddress" className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Company Address (for Bills)
+              </Label>
+              <Textarea
+                id="companyAddress"
+                value={formData.company_address}
+                onChange={(e) => handleInputChange("company_address", e.target.value)}
+                placeholder="Enter company address for bills/invoices"
+                className="w-full"
+                rows={3}
+              />
+              <p className="text-xs text-gray-500">
+                This address will appear on all bills and invoices.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -295,7 +357,7 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
 
       {/* Preview Section */}
       {formData.business_name && (
-        <Card className="border-gray-200">
+        <Card className="border-0">
           <CardHeader>
             <CardTitle className="text-lg font-semibold">Sidebar Preview</CardTitle>
           </CardHeader>

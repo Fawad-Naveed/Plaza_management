@@ -446,7 +446,7 @@ export function ReportsModule({ activeSubSection }: ReportsModuleProps) {
   }
 
   const renderFilters = () => (
-    <Card className="border-gray-200 mb-6">
+    <Card className="border-0 mb-6">
       <CardHeader>
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <Filter className="h-5 w-5 text-gray-500" />
@@ -527,7 +527,7 @@ export function ReportsModule({ activeSubSection }: ReportsModuleProps) {
   )
 
   const renderDownloadSection = () => (
-    <Card className="border-gray-200">
+    <Card className="border-0">
       <CardHeader>
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           {getReportIcon()}
@@ -617,7 +617,7 @@ export function ReportsModule({ activeSubSection }: ReportsModuleProps) {
     
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card className="border-gray-200">
+        <Card className="border-0">
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-blue-500" />
@@ -629,7 +629,7 @@ export function ReportsModule({ activeSubSection }: ReportsModuleProps) {
           </CardContent>
         </Card>
         
-        <Card className="border-gray-200">
+        <Card className="border-0">
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-green-500" />
@@ -641,7 +641,7 @@ export function ReportsModule({ activeSubSection }: ReportsModuleProps) {
           </CardContent>
         </Card>
         
-        <Card className="border-gray-200">
+        <Card className="border-0">
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-purple-500" />

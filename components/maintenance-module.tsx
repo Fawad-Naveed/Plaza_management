@@ -68,7 +68,10 @@ import {
   type MaintenancePayment as DBMaintenancePayment,
   type MaintenanceAdvance as DBMaintenanceAdvance,
   type MaintenanceInstalment as DBMaintenanceInstalment,
+  getInformation,
+  type Information,
 } from "@/lib/database"
+import { generateMaintenanceBillPDF, type MaintenanceBillData } from "@/lib/maintenance-bill-pdf"
 
 interface MaintenanceBill {
   id: string
@@ -611,49 +614,84 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
     }
   }
 
-  const handlePrintBill = (bill: MaintenanceBill) => {
-    // Create a print-friendly version
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Maintenance Bill - ${bill.billNumber}</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 20px; }
-              .header { text-align: center; margin-bottom: 30px; }
-              .bill-details { margin-bottom: 20px; }
-              .bill-details table { width: 100%; border-collapse: collapse; }
-              .bill-details td { padding: 8px; border: 1px solid #ddd; }
-              .total { font-weight: bold; font-size: 18px; }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h1>PLAZA MANAGEMENT</h1>
-              <h2>Maintenance Bill</h2>
-            </div>
-            <div class="bill-details">
-              <table>
-                <tr><td><strong>Bill Number:</strong></td><td>${bill.billNumber}</td></tr>
-                <tr><td><strong>Customer:</strong></td><td>${bill.customerName}</td></tr>
-                <tr><td><strong>Shop:</strong></td><td>${bill.shopNumber}</td></tr>
-                <tr><td><strong>Floor:</strong></td><td>${bill.floor}</td></tr>
-                <tr><td><strong>Category:</strong></td><td>${bill.category}</td></tr>
-                <tr><td><strong>Description:</strong></td><td>${bill.description}</td></tr>
-                <tr><td><strong>Bill Date:</strong></td><td>${bill.billDate}</td></tr>
-                <tr><td><strong>Due Date:</strong></td><td>${bill.dueDate}</td></tr>
-                <tr><td><strong>Amount:</strong></td><td class="total">PKR ${bill.amount.toFixed(2)}</td></tr>
-                <tr><td><strong>Paid Amount:</strong></td><td>PKR ${bill.paidAmount.toFixed(2)}</td></tr>
-                <tr><td><strong>Remaining:</strong></td><td>PKR ${bill.remainingAmount.toFixed(2)}</td></tr>
-                <tr><td><strong>Status:</strong></td><td>${bill.status.toUpperCase()}</td></tr>
-              </table>
-            </div>
-          </body>
-        </html>
-      `)
-      printWindow.document.close()
-      printWindow.print()
+  const handlePrintBill = async (bill: MaintenanceBill) => {
+    try {
+      const business = businesses.find((b) => b.id === bill.customerId)
+      
+      // Get business information for branding
+      let businessInfo: Information | null = null
+      try {
+        businessInfo = await getInformation()
+      } catch (error) {
+        console.log("No business information found, using default branding")
+      }
+
+      // Get historical maintenance bills for the business (last 12)
+      const businessBills = maintenanceBills
+        .filter(b => b.customerId === bill.customerId && b.id !== bill.id)
+        .sort((a, b) => new Date(b.billDate).getTime() - new Date(a.billDate).getTime())
+        .slice(0, 12)
+        .map(b => ({
+          reading_date: b.billDate,
+          amount: b.amount,
+          units_consumed: 0,
+          payment_status: b.status === 'paid' ? 'paid' : 'pending'
+        }))
+
+      // Calculate arrears (unpaid previous bills)
+      const arrears = maintenanceBills
+        .filter(b => 
+          b.customerId === bill.customerId && 
+          b.status !== 'paid' && 
+          b.status !== 'waveoff' &&
+          b.id !== bill.id &&
+          new Date(b.billDate) < new Date(bill.billDate)
+        )
+        .reduce((sum, b) => sum + b.amount, 0)
+
+      // Calculate late surcharge (10% of arrears if any)
+      const lateSurcharge = arrears > 0 ? arrears * 0.1 : 0
+
+      // Helper functions for PDF generation
+      const getBusinessName = (id: string) => {
+        const b = businesses.find(bus => bus.id === id)
+        return b?.name || 'Unknown'
+      }
+
+      const getBusinessShop = (id: string) => {
+        const b = businesses.find(bus => bus.id === id)
+        return b?.shop_number || 'N/A'
+      }
+
+      const getFloorName = (floorNum: number) => {
+        return `Floor ${floorNum}`
+      }
+
+      const maintenanceBillData: MaintenanceBillData = {
+        reading: {
+          id: bill.id,
+          business_id: bill.customerId,
+          bill_number: bill.billNumber,
+          reading_date: bill.billDate,
+          payment_status: bill.status === 'paid' ? 'paid' : 'pending',
+          amount: bill.amount,
+          maintenance_charge: bill.amount,
+          created_at: bill.billDate
+        },
+        businessReadings: businessBills,
+        business: business,
+        businessInfo: businessInfo || undefined,
+        getBusinessName,
+        getBusinessShop,
+        getFloorName,
+        arrears,
+        lateSurcharge
+      }
+
+      await generateMaintenanceBillPDF(maintenanceBillData)
+    } catch (error) {
+      console.error("Error generating maintenance bill PDF:", error)
+      setError("Failed to generate maintenance bill PDF. Please try again.")
     }
   }
 

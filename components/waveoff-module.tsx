@@ -228,19 +228,19 @@ export function WaveoffModule() {
   const meterReadings = filteredBills.filter(bill => bill.type === "meter-reading")
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 tracking-tight">Wave off Management</h1>
-            <p className="text-lg text-gray-600 mt-2">All waved off bills across all modules</p>
+            <h1 className="text-4xl font-bold tracking-tight">Wave off Management</h1>
+            <p className="text-lg text-muted-foreground mt-2">All waved off bills across all modules</p>
           </div>
         </div>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="border-gray-200 hover:shadow-lg transition-all duration-300">
+          <Card className="border-0 hover:shadow-lg transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-red-500 rounded-lg">
@@ -257,7 +257,7 @@ export function WaveoffModule() {
             </CardContent>
           </Card>
 
-          <Card className="border-gray-200 hover:shadow-lg transition-all duration-300">
+          <Card className="border-0 hover:shadow-lg transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-blue-500 rounded-lg">
@@ -277,7 +277,7 @@ export function WaveoffModule() {
             </CardContent>
           </Card>
 
-          <Card className="border-gray-200 hover:shadow-lg transition-all duration-300">
+          <Card className="border-0 hover:shadow-lg transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-purple-500 rounded-lg">
@@ -294,7 +294,7 @@ export function WaveoffModule() {
             </CardContent>
           </Card>
 
-          <Card className="border-gray-200 hover:shadow-lg transition-all duration-300">
+          <Card className="border-0 hover:shadow-lg transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-green-500 rounded-lg">
@@ -313,7 +313,7 @@ export function WaveoffModule() {
         </div>
 
         {/* Bills List with Tabs */}
-        <Card className="border-gray-200 shadow-lg">
+        <Card className="border-0 shadow-lg">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-xl font-semibold">Waved Off Bills</CardTitle>
@@ -400,8 +400,8 @@ export function WaveoffModule() {
                 {getFilteredBillsByType(activeTab).length === 0 && (
                   <div className="text-center py-8">
                     <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No waved off bills found</h3>
-                    <p className="text-gray-600">
+                    <h3 className="text-lg font-medium mb-2">No waved off bills found</h3>
+                    <p className="text-muted-foreground">
                       {searchTerm 
                         ? "No bills match your search criteria."
                         : `No ${activeTab === "all" ? "" : activeTab} bills have been waved off yet.`

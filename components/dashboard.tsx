@@ -104,11 +104,28 @@ export function Dashboard() {
   }
 
 
-  const customerStats = {
-    total: businesses.length,
-    paid: bills.filter((bill) => bill.status === "paid").length,
-    unpaid: bills.filter((bill) => bill.status === "pending" || bill.status === "overdue").length,
-  }
+  const customerStats = (() => {
+    // Total customers equals total businesses
+    const total = businesses.length
+
+    // Track unique business IDs that have at least one paid bill
+    const paidCustomerIds = new Set<string>()
+    const unpaidCustomerIds = new Set<string>()
+
+    bills.forEach((bill) => {
+      if (bill.status === "paid") {
+        paidCustomerIds.add(bill.business_id)
+      } else if (bill.status === "pending" || bill.status === "overdue") {
+        unpaidCustomerIds.add(bill.business_id)
+      }
+    })
+
+    return {
+      total,
+      paid: paidCustomerIds.size,
+      unpaid: unpaidCustomerIds.size,
+    }
+  })()
 
   const floorData = floors.map((floor) => {
     const floorBusinesses = businesses.filter((b) => b.floor_number === floor.floor_number)
@@ -180,14 +197,14 @@ export function Dashboard() {
   }
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 ${isMobile ? 'p-4' : 'p-6'}`}>
+    <div className={`min-h-screen bg-background ${isMobile ? 'p-4' : 'p-6'}`}>
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className={`font-bold text-gray-900 tracking-tight ${
+            <h1 className={`font-bold tracking-tight ${
               isMobile ? 'text-2xl' : isTablet ? 'text-3xl' : 'text-4xl'
             }`}>Dashboard</h1>
-            <p className={`text-gray-600 mt-2 ${
+            <p className={`text-muted-foreground mt-2 ${
               isMobile ? 'text-sm' : 'text-lg'
             }`}>Plaza Management Overview</p>
           </div>
@@ -197,13 +214,13 @@ export function Dashboard() {
       <RevenueInsights />
 
         {/* Floor Details Section */}
-        <Card className={`bg-white shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
+        <Card className={`bg-card shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
           isMobile ? 'hover:shadow-xl' : 'hover:scale-[1.02] hover:shadow-2xl'
         }`}>
-          <CardHeader className={`bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 border-b border-gray-200 ${
+          <CardHeader className={`border-b border-border ${
             isMobile ? 'px-4 py-4' : 'px-6 py-6'
           }`}>
-            <CardTitle className={`font-bold text-gray-900 flex items-center gap-3 ${
+            <CardTitle className={`font-bold flex items-center gap-3 ${
               isMobile ? 'text-lg' : 'text-xl'
             }`}>
               <Building className={`text-blue-600 ${
@@ -211,7 +228,7 @@ export function Dashboard() {
               }`} />
               Floor Details
             </CardTitle>
-            <p className={`text-gray-600 mt-1 ${
+            <p className={`text-muted-foreground mt-1 ${
               isMobile ? 'text-xs' : 'text-sm'
             }`}>Overview of all floors and occupancy</p>
           </CardHeader>
@@ -271,19 +288,19 @@ export function Dashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Floor</th>
-                      <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Total Shops</th>
-                      <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Occupied</th>
-                      <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Electricity Users</th>
-                      <th className="text-left py-4 px-6 font-semibold text-gray-900 text-sm uppercase tracking-wider">Occupancy Rate</th>
+                    <tr className="bg-muted/50 border-b border-border">
+                      <th className="text-left py-4 px-6 font-semibold text-sm uppercase tracking-wider">Floor</th>
+                      <th className="text-left py-4 px-6 font-semibold text-sm uppercase tracking-wider">Total Shops</th>
+                      <th className="text-left py-4 px-6 font-semibold text-sm uppercase tracking-wider">Occupied</th>
+                      <th className="text-left py-4 px-6 font-semibold text-sm uppercase tracking-wider">Electricity Users</th>
+                      <th className="text-left py-4 px-6 font-semibold text-sm uppercase tracking-wider">Occupancy Rate</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-border">
                     {floorData.map((floor, index) => (
-                      <tr key={floor.floor} className={`hover:bg-blue-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                        <td className="py-4 px-6 font-semibold text-gray-900">{floor.floor}</td>
-                        <td className="py-4 px-6 text-gray-700">{floor.total}</td>
+                      <tr key={floor.floor} className="hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200">
+                        <td className="py-4 px-6 font-semibold">{floor.floor}</td>
+                        <td className="py-4 px-6">{floor.total}</td>
                         <td className="py-4 px-6">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             {floor.occupied}
@@ -292,18 +309,18 @@ export function Dashboard() {
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-2">
                             <Zap className="h-4 w-4 text-yellow-500" />
-                            <span className="text-gray-700">{floor.electricityUsers}</span>
+                            <span>{floor.electricityUsers}</span>
                           </div>
                         </td>
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-3">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2 min-w-[60px]">
+                            <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 min-w-[60px]">
                               <div 
                                 className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300" 
                                 style={{ width: `${floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%` }}
                               ></div>
                             </div>
-                            <span className="text-sm font-semibold text-gray-900 min-w-[3rem]">
+                            <span className="text-sm font-semibold min-w-[3rem]">
                               {floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%
                             </span>
                           </div>
@@ -326,7 +343,7 @@ export function Dashboard() {
 
         {/* Statistics Cards */}
         <div className="mobile-grid gap-4 md:gap-6">
-          <Card className={`bg-white shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
+          <Card className={`bg-card shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
             isMobile ? 'hover:shadow-xl' : 'hover:shadow-2xl hover:scale-105'
           }`}>
             <CardContent className={isMobile ? "p-4" : "p-6"}>
@@ -355,7 +372,7 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className={`bg-white shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
+          <Card className={`bg-card shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
             isMobile ? 'hover:shadow-xl' : 'hover:shadow-2xl hover:scale-105'
           }`}>
             <CardContent className={isMobile ? "p-4" : "p-6"}>
@@ -384,7 +401,7 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className={`bg-white shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
+          <Card className={`bg-card shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
             isMobile ? 'hover:shadow-xl' : 'hover:shadow-2xl hover:scale-105'
           }`}>
             <CardContent className={isMobile ? "p-4" : "p-6"}>
@@ -415,13 +432,13 @@ export function Dashboard() {
         </div>
 
         {/* Floor-wise Occupancy Chart */}
-        <Card className={`bg-white shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
+        <Card className={`bg-card shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
           isMobile ? 'hover:shadow-xl' : 'hover:scale-[1.01] hover:shadow-2xl'
         }`}>
-          <CardHeader className={`bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border-b border-gray-200 ${
+          <CardHeader className={`border-b border-border ${
             isMobile ? 'px-4 py-4' : 'px-6 py-6'
           }`}>
-            <CardTitle className={`font-bold text-gray-900 flex items-center gap-3 ${
+            <CardTitle className={`font-bold flex items-center gap-3 ${
               isMobile ? 'text-lg' : 'text-xl'
             }`}>
               <Building className={`text-blue-600 ${
@@ -429,7 +446,7 @@ export function Dashboard() {
               }`} />
               Floor-wise Occupancy Analysis
             </CardTitle>
-            <p className={`text-gray-600 mt-1 ${
+            <p className={`text-muted-foreground mt-1 ${
               isMobile ? 'text-xs' : 'text-sm'
             }`}>Visual representation of shop occupancy across floors</p>
           </CardHeader>
@@ -479,13 +496,13 @@ export function Dashboard() {
         <div className={`grid grid-cols-1 gap-4 md:gap-6 ${
           isMobile ? '' : 'lg:grid-cols-2'
         }`}>
-          <Card className={`bg-white shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
+          <Card className={`bg-card shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
             isMobile ? 'hover:shadow-xl' : 'hover:scale-[1.02] hover:shadow-2xl'
           }`}>
-            <CardHeader className={`bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 border-b border-gray-200 ${
+            <CardHeader className={`border-b border-border ${
               isMobile ? 'px-4 py-4' : 'px-6 py-6'
             }`}>
-              <CardTitle className={`font-bold text-gray-900 flex items-center gap-3 ${
+              <CardTitle className={`font-bold flex items-center gap-3 ${
                 isMobile ? 'text-lg' : 'text-xl'
               }`}>
                 <FileText className={`text-green-600 ${
@@ -493,7 +510,7 @@ export function Dashboard() {
                 }`} />
                 Rent Management Bills
               </CardTitle>
-              <p className={`text-gray-600 mt-1 ${
+              <p className={`text-muted-foreground mt-1 ${
                 isMobile ? 'text-xs' : 'text-sm'
               }`}>Payment status distribution</p>
             </CardHeader>
@@ -549,24 +566,24 @@ export function Dashboard() {
                 <div className="flex justify-center mt-3 space-x-4">
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                    <span className="text-xs text-gray-600">Paid: {bills.filter((bill) => bill.status === "paid").length}</span>
+                    <span className="text-xs text-muted-foreground">Paid: {bills.filter((bill) => bill.status === "paid").length}</span>
                   </div>
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-                    <span className="text-xs text-gray-600">Unpaid: {bills.filter((bill) => bill.status !== "paid").length}</span>
+                    <span className="text-xs text-muted-foreground">Unpaid: {bills.filter((bill) => bill.status !== "paid").length}</span>
                   </div>
                 </div>
               )}
             </CardContent>
           </Card>
           
-          <Card className={`bg-white shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
+          <Card className={`bg-card shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
             isMobile ? 'hover:shadow-xl' : 'hover:scale-[1.02] hover:shadow-2xl'
           }`}>
-            <CardHeader className={`bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 border-b border-gray-200 ${
+            <CardHeader className={`border-b border-border ${
               isMobile ? 'px-4 py-4' : 'px-6 py-6'
             }`}>
-              <CardTitle className={`font-bold text-gray-900 flex items-center gap-3 ${
+              <CardTitle className={`font-bold flex items-center gap-3 ${
                 isMobile ? 'text-lg' : 'text-xl'
               }`}>
                 <CreditCard className={`text-purple-600 ${
@@ -574,7 +591,7 @@ export function Dashboard() {
                 }`} />
                 Maintenance Management Bills
               </CardTitle>
-              <p className={`text-gray-600 mt-1 ${
+              <p className={`text-muted-foreground mt-1 ${
                 isMobile ? 'text-xs' : 'text-sm'
               }`}>Payment status distribution</p>
             </CardHeader>
@@ -630,11 +647,11 @@ export function Dashboard() {
                 <div className="flex justify-center mt-3 space-x-4">
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
-                    <span className="text-xs text-gray-600">Paid: {maintenanceBills.filter((bill) => bill.status === "paid").length}</span>
+                    <span className="text-xs text-muted-foreground">Paid: {maintenanceBills.filter((bill) => bill.status === "paid").length}</span>
                   </div>
                   <div className="flex items-center">
                     <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
-                    <span className="text-xs text-gray-600">Unpaid: {maintenanceBills.filter((bill) => bill.status !== "paid").length}</span>
+                    <span className="text-xs text-muted-foreground">Unpaid: {maintenanceBills.filter((bill) => bill.status !== "paid").length}</span>
                   </div>
                 </div>
               )}

@@ -226,7 +226,7 @@ export function BusinessDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex items-center gap-2">
           <Loader2 className="h-5 w-5 animate-spin" />
           <span>Loading your business data...</span>
@@ -237,14 +237,14 @@ export function BusinessDashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-red-600 mb-4">
               <AlertCircle className="h-5 w-5" />
               <span className="font-medium">Error</span>
             </div>
-            <p className="text-gray-600 mb-4">{error}</p>
+            <p className="text-muted-foreground mb-4">{error}</p>
             <Button onClick={() => logout()} className="w-full">
               Back to Sign In
             </Button>
@@ -256,11 +256,11 @@ export function BusinessDashboard() {
 
   if (!business) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6 text-center">
-            <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">Business not found</p>
+            <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">Business not found</p>
             <Button onClick={() => logout()} className="mt-4">
               Back to Sign In
             </Button>
@@ -282,24 +282,24 @@ export function BusinessDashboard() {
                           unpaidMeterReadings.reduce((sum, reading) => sum + (reading.amount || 0), 0)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-card shadow-sm border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center gap-3">
               <Building2 className="h-8 w-8 text-blue-600" />
               <div>
-                <h1 className="text-xl font-bold text-gray-900">{business.name}</h1>
-                <p className="text-sm text-gray-600">Business Dashboard</p>
+                <h1 className="text-xl font-bold text-foreground">{business.name}</h1>
+                <p className="text-sm text-muted-foreground">Business Dashboard</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-foreground">
                   Welcome, {authState?.businessName}
                 </p>
-                <p className="text-xs text-gray-600">Shop {business.shop_number}</p>
+                <p className="text-xs text-muted-foreground">Shop {business.shop_number}</p>
               </div>
             </div>
           </div>
@@ -310,7 +310,7 @@ export function BusinessDashboard() {
         <div className="space-y-6">
           {/* Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-2xl hover:scale-105">
+            <Card className="bg-card shadow-lg border-border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-2xl hover:scale-105">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Bills</CardTitle>
                 <Receipt className="h-4 w-4 text-muted-foreground" />
@@ -320,7 +320,7 @@ export function BusinessDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-2xl hover:scale-105">
+            <Card className="bg-card shadow-lg border-border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-2xl hover:scale-105">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Unpaid Bills</CardTitle>
                 <AlertCircle className="h-4 w-4 text-orange-500" />
@@ -330,7 +330,7 @@ export function BusinessDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-2xl hover:scale-105">
+            <Card className="bg-card shadow-lg border-border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-2xl hover:scale-105">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Outstanding Amount</CardTitle>
                 <CreditCard className="h-4 w-4 text-red-500" />
@@ -340,7 +340,7 @@ export function BusinessDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-2xl hover:scale-105">
+            <Card className="bg-card shadow-lg border-border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-2xl hover:scale-105">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Payments</CardTitle>
                 <CreditCard className="h-4 w-4 text-green-500" />
@@ -352,7 +352,7 @@ export function BusinessDashboard() {
           </div>
 
           {/* Business Details */}
-          <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out hover:shadow-2xl hover:scale-[1.01]">
+          <Card className="bg-card shadow-lg border-border rounded-xl overflow-hidden transition-all duration-300 ease-out hover:shadow-2xl hover:scale-[1.01]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
@@ -363,27 +363,27 @@ export function BusinessDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <User className="h-4 w-4 text-gray-500" />
+                    <User className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-gray-600">Contact Person</p>
-                      <p className="font-medium">{business.contact_person}</p>
+                      <p className="text-sm text-muted-foreground">Contact Person</p>
+                      <p className="font-medium text-foreground">{business.contact_person}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-3">
-                    <Phone className="h-4 w-4 text-gray-500" />
+                    <Phone className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-gray-600">Phone</p>
-                      <p className="font-medium">{business.phone}</p>
+                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <p className="font-medium text-foreground">{business.phone}</p>
                     </div>
                   </div>
                   
                   {business.email && (
                     <div className="flex items-center gap-3">
-                      <Mail className="h-4 w-4 text-gray-500" />
+                      <Mail className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-sm text-gray-600">Email</p>
-                        <p className="font-medium">{business.email}</p>
+                        <p className="text-sm text-muted-foreground">Email</p>
+                        <p className="font-medium text-foreground">{business.email}</p>
                       </div>
                     </div>
                   )}
@@ -391,25 +391,25 @@ export function BusinessDashboard() {
                 
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <MapPin className="h-4 w-4 text-gray-500" />
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-gray-600">Location</p>
-                      <p className="font-medium">Floor {business.floor_number}, Shop {business.shop_number}</p>
+                      <p className="text-sm text-muted-foreground">Location</p>
+                      <p className="font-medium text-foreground">Floor {business.floor_number}, Shop {business.shop_number}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-3">
-                    <Receipt className="h-4 w-4 text-gray-500" />
+                    <Receipt className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-gray-600">Monthly Rent</p>
-                      <p className="font-medium">{formatCurrency(business.rent_amount)}</p>
+                      <p className="text-sm text-muted-foreground">Monthly Rent</p>
+                      <p className="font-medium text-foreground">{formatCurrency(business.rent_amount)}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-gray-600">Status</p>
+                      <p className="text-sm text-muted-foreground">Status</p>
                       <div>{getStatusBadge(business.status)}</div>
                     </div>
                   </div>
@@ -419,7 +419,7 @@ export function BusinessDashboard() {
           </Card>
 
           {/* Recent Bills */}
-          <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out hover:shadow-2xl hover:scale-[1.01]">
+          <Card className="bg-card shadow-lg border-border rounded-xl overflow-hidden transition-all duration-300 ease-out hover:shadow-2xl hover:scale-[1.01]">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Recent Bills</CardTitle>
@@ -444,12 +444,12 @@ export function BusinessDashboard() {
             </CardHeader>
             <CardContent>
               {totalBills === 0 ? (
-                <p className="text-gray-600 text-center py-8">No bills found</p>
+                <p className="text-muted-foreground text-center py-8">No bills found</p>
               ) : (
                 <div className="space-y-4">
                   {/* Regular Bills */}
                   {bills.slice(0, 5).map((bill) => (
-                    <div key={`bill-${bill.id}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div key={`bill-${bill.id}`} className="flex items-center justify-between p-3 bg-accent/50 rounded-lg hover:bg-accent transition-colors">
                       <div className="flex items-center gap-3">
                         {/* Status indicator and checkbox */}
                         <div className="flex items-center">
@@ -477,8 +477,8 @@ export function BusinessDashboard() {
                           </button>
                         </div>
                         <div>
-                          <p className="font-medium">{bill.bill_number}</p>
-                          <p className="text-sm text-gray-600">Due: {formatDate(bill.due_date)}</p>
+                          <p className="font-medium text-foreground">{bill.bill_number}</p>
+                          <p className="text-sm text-muted-foreground">Due: {formatDate(bill.due_date)}</p>
                         </div>
                       </div>
                       <div className="text-right">
@@ -518,8 +518,8 @@ export function BusinessDashboard() {
                           </button>
                         </div>
                         <div>
-                          <p className="font-medium">{bill.bill_number}</p>
-                          <p className="text-sm text-gray-600">Maintenance - {formatDate(bill.due_date)}</p>
+                          <p className="font-medium text-foreground">{bill.bill_number}</p>
+                          <p className="text-sm text-muted-foreground">Maintenance - {formatDate(bill.due_date)}</p>
                         </div>
                       </div>
                       <div className="text-right">
@@ -571,8 +571,8 @@ export function BusinessDashboard() {
                           </button>
                         </div>
                         <div>
-                          <p className="font-medium">{reading.bill_number || `ELE-${reading.id.slice(-6).toUpperCase()}`}</p>
-                          <p className="text-sm text-gray-600">Electricity - {formatDate(reading.reading_date)} ({reading.units_consumed} units)</p>
+                          <p className="font-medium text-foreground">{reading.bill_number || `ELE-${reading.id.slice(-6).toUpperCase()}`}</p>
+                          <p className="text-sm text-muted-foreground">Electricity - {formatDate(reading.reading_date)} ({reading.units_consumed} units)</p>
                         </div>
                       </div>
                       <div className="text-right">
@@ -628,8 +628,8 @@ export function BusinessDashboard() {
                           </button>
                         </div>
                         <div>
-                          <p className="font-medium">{reading.bill_number || `GAS-${reading.id.slice(-6).toUpperCase()}`}</p>
-                          <p className="text-sm text-gray-600">Gas - {formatDate(reading.reading_date)} ({reading.units_consumed} units)</p>
+                          <p className="font-medium text-foreground">{reading.bill_number || `GAS-${reading.id.slice(-6).toUpperCase()}`}</p>
+                          <p className="text-sm text-muted-foreground">Gas - {formatDate(reading.reading_date)} ({reading.units_consumed} units)</p>
                         </div>
                       </div>
                       <div className="text-right">
@@ -648,7 +648,7 @@ export function BusinessDashboard() {
           </Card>
 
           {/* Recent Payments */}
-          <Card className="bg-white shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out hover:shadow-2xl hover:scale-[1.01]">
+          <Card className="bg-card shadow-lg border-border rounded-xl overflow-hidden transition-all duration-300 ease-out hover:shadow-2xl hover:scale-[1.01]">
             <CardHeader>
               <CardTitle>Recent Payments</CardTitle>
             </CardHeader>
@@ -661,52 +661,52 @@ export function BusinessDashboard() {
                     type: 'regular', 
                     date: new Date(p.payment_date),
                     displayTitle: `Rent Payment - ${p.payment_method.toUpperCase()}`,
-                    bgColor: 'bg-green-50 hover:bg-green-100',
-                    textColor: 'text-green-600'
+                    bgColor: 'bg-green-500/10 hover:bg-green-500/20 dark:bg-green-500/20 dark:hover:bg-green-500/30',
+                    textColor: 'text-green-600 dark:text-green-400'
                   })),
                   ...maintenancePayments.map(p => ({ 
                     ...p, 
                     type: 'maintenance', 
                     date: new Date(p.payment_date),
                     displayTitle: `Maintenance Payment - ${p.payment_method.toUpperCase()}`,
-                    bgColor: 'bg-blue-50 hover:bg-blue-100',
-                    textColor: 'text-blue-600'
+                    bgColor: 'bg-blue-500/10 hover:bg-blue-500/20 dark:bg-blue-500/20 dark:hover:bg-blue-500/30',
+                    textColor: 'text-blue-600 dark:text-blue-400'
                   })),
                   ...paidElectricityBills.map(r => ({ 
                     ...r, 
                     type: 'electricity', 
                     date: new Date(r.marked_paid_date || r.reading_date),
                     displayTitle: 'Electricity Payment',
-                    bgColor: 'bg-yellow-50 hover:bg-yellow-100',
-                    textColor: 'text-yellow-600'
+                    bgColor: 'bg-yellow-500/10 hover:bg-yellow-500/20 dark:bg-yellow-500/20 dark:hover:bg-yellow-500/30',
+                    textColor: 'text-yellow-600 dark:text-yellow-400'
                   })),
                   ...paidGasBills.map(r => ({ 
                     ...r, 
                     type: 'gas', 
                     date: new Date(r.marked_paid_date || r.reading_date),
                     displayTitle: 'Gas Payment',
-                    bgColor: 'bg-purple-50 hover:bg-purple-100',
-                    textColor: 'text-purple-600'
+                    bgColor: 'bg-purple-500/10 hover:bg-purple-500/20 dark:bg-purple-500/20 dark:hover:bg-purple-500/30',
+                    textColor: 'text-purple-600 dark:text-purple-400'
                   }))
                 ].sort((a, b) => b.date.getTime() - a.date.getTime())
                 
                 return totalPayments === 0 ? (
-                  <p className="text-gray-600 text-center py-8">No payments found</p>
+                  <p className="text-muted-foreground text-center py-8">No payments found</p>
                 ) : (
                   <div className="space-y-4">
                     {allPayments.slice(0, 8).map((payment) => (
                       <div key={`${payment.type}-${payment.id}`} className={`flex items-center justify-between p-3 rounded-lg transition-colors duration-200 ${payment.bgColor}`}>
                         <div>
-                          <p className="font-medium">{payment.displayTitle}</p>
+                          <p className="font-medium text-foreground">{payment.displayTitle}</p>
                           {payment.type === 'electricity' || payment.type === 'gas' ? (
                             <>
-                              <p className="text-sm text-gray-600">
+                              <p className="text-sm text-muted-foreground">
                                 {payment.bill_number || `${payment.type === 'gas' ? 'GAS' : 'ELE'}-${payment.id.slice(-6).toUpperCase()}`} - {formatDate(payment.reading_date)}
                               </p>
-                              <p className="text-xs text-gray-500">{payment.units_consumed} units consumed</p>
+                              <p className="text-xs text-muted-foreground">{payment.units_consumed} units consumed</p>
                             </>
                           ) : (
-                            <p className="text-sm text-gray-600">{formatDate(payment.payment_date)}</p>
+                            <p className="text-sm text-muted-foreground">{formatDate(payment.payment_date)}</p>
                           )}
                           {payment.marked_paid_by && (
                             <p className="text-xs text-blue-600">
@@ -717,10 +717,10 @@ export function BusinessDashboard() {
                         <div className="text-right">
                           <p className={`font-medium ${payment.textColor}`}>{formatCurrency(payment.amount)}</p>
                           {payment.reference_number && (
-                            <p className="text-xs text-gray-500">Ref: {payment.reference_number}</p>
+                            <p className="text-xs text-muted-foreground">Ref: {payment.reference_number}</p>
                           )}
                           {payment.marked_paid_date && (
-                            <p className="text-xs text-gray-500">Paid: {formatDate(payment.marked_paid_date)}</p>
+                            <p className="text-xs text-muted-foreground">Paid: {formatDate(payment.marked_paid_date)}</p>
                           )}
                           {payment.type === 'electricity' && (
                             <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-1">

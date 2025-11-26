@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Menu, X, Building, Home, LogOut, HelpCircle, BarChart3 } from "lucide-react"
+import { Menu, X, Building, Home, LogOut, HelpCircle, BarChart3, Moon, Sun } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMobileSidebar, usePreventScroll, useTouchGestures } from "@/hooks/use-mobile"
 import { logout, getAuthState } from "@/lib/auth"
 import { useQueryCounts } from "@/hooks/use-query-counts"
+import { useTheme } from "next-themes"
 import Image from "next/image"
 
 interface BusinessSidebarProps {
@@ -42,9 +43,15 @@ export function BusinessSidebar({
   const { isMobile } = useMobileSidebar()
   const { handleTouchStart, handleTouchMove, handleTouchEnd } = useTouchGestures()
   const { counts } = useQueryCounts()
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   
   // Prevent body scroll when mobile drawer is open
   usePreventScroll(isMobile && isMobileDrawerOpen)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const authState = getAuthState()
@@ -204,10 +211,45 @@ export function BusinessSidebar({
           ))}
         </nav>
 
-        {/* Logout Button */}
+        {/* Theme Toggle and Logout Buttons */}
         <div className={`border-t border-gray-700 flex-shrink-0 ${
           isMobile ? 'p-4' : 'p-3'
         }`}>
+          {/* Theme Toggle Button */}
+          <Button
+            variant="ghost"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            disabled={!mounted}
+            className={`w-full justify-start text-left hover:bg-gray-700 hover:text-white transition-all duration-200 rounded-lg text-gray-300 group ${
+              collapsed && !isMobile ? "px-2 py-3" : isMobile ? "px-4 py-4 touch-button" : "px-3 py-2"
+            } ${isMobile ? 'mb-3' : 'mb-2'}`}
+          >
+            {(collapsed && !isMobile) ? (
+              <div className="w-full flex justify-center">
+                {theme === "dark" ? (
+                  <Sun className="h-4 w-4 group-hover:text-white" />
+                ) : (
+                  <Moon className="h-4 w-4 group-hover:text-white" />
+                )}
+              </div>
+            ) : (
+              <>
+                {theme === "dark" ? (
+                  <>
+                    <Sun className={`${isMobile ? 'h-5 w-5 mr-3' : 'h-4 w-4 mr-3'} group-hover:text-white`} />
+                    <span className={isMobile ? 'text-base' : ''}>Light Mode</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className={`${isMobile ? 'h-5 w-5 mr-3' : 'h-4 w-4 mr-3'} group-hover:text-white`} />
+                    <span className={isMobile ? 'text-base' : ''}>Dark Mode</span>
+                  </>
+                )}
+              </>
+            )}
+          </Button>
+
+          {/* Logout Button */}
           <Button
             variant="ghost"
             onClick={logout}

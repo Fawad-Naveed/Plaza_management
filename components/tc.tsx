@@ -189,7 +189,7 @@ export function TCComponent() {
 
       <div className="space-y-4">
         {tcs.map((tc) => (
-          <Card key={tc.id} className="border-gray-200">
+          <Card key={tc.id} className="border-0">
             <CardHeader>
               <CardTitle className="text-lg font-semibold flex items-center justify-between">
                 {tc.title}
@@ -227,7 +227,7 @@ export function TCComponent() {
       </div>
 
       {tcs.length === 0 && !loading && (
-        <Card className="border-gray-200">
+        <Card className="border-0">
           <CardContent className="p-12 text-center">
             <p className="text-gray-500 mb-4">No T&C added yet.</p>
             <Button onClick={() => setShowAddDialog(true)} className="bg-black text-white hover:bg-gray-800">

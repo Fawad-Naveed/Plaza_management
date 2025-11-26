@@ -253,21 +253,21 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-card rounded-xl shadow-sm border border-border p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <HelpCircle className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Query Management</h1>
-                <p className="text-gray-600">Manage and respond to business queries</p>
+                <h1 className="text-2xl font-bold">Query Management</h1>
+                <p className="text-muted-foreground">Manage and respond to business queries</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span>Last updated: {new Date().toLocaleString()}</span>
             </div>
@@ -432,8 +432,8 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
                   <TableRow key={query.id}>
                     <TableCell>
                       <div>
-                        <p className="font-medium text-gray-900">{query.title}</p>
-                        <p className="text-sm text-gray-600 truncate max-w-xs">
+                        <p className="font-medium">{query.title}</p>
+                        <p className="text-sm text-muted-foreground truncate max-w-xs">
                           {query.description}
                         </p>
                       </div>
@@ -441,7 +441,7 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
                           <TableCell>
                             <div>
                               <p className="font-medium">{query.business?.name || 'Unknown Business'}</p>
-                              <p className="text-sm text-gray-600">Shop: {query.business?.shop_number || 'N/A'}</p>
+                              <p className="text-sm text-muted-foreground">Shop: {query.business?.shop_number || 'N/A'}</p>
                             </div>
                           </TableCell>
                     <TableCell>
@@ -480,37 +480,37 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
                             <div className="space-y-4">
                               <div>
                                 <h3 className="font-semibold text-lg">{query.title}</h3>
-                                <p className="text-gray-600 mt-2">{query.description}</p>
+                                <p className="text-muted-foreground mt-2">{query.description}</p>
                               </div>
                               
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                  <p className="text-sm text-gray-600">Business</p>
+                                  <p className="text-sm text-muted-foreground">Business</p>
                                   <p className="font-medium">{query.business?.name || 'Unknown Business'}</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm text-gray-600">Shop</p>
+                                  <p className="text-sm text-muted-foreground">Shop</p>
                                   <p className="font-medium">{query.business?.shop_number || 'N/A'}</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm text-gray-600">Category</p>
+                                  <p className="text-sm text-muted-foreground">Category</p>
                                   <p className="font-medium capitalize">{query.category}</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm text-gray-600">Priority</p>
+                                  <p className="text-sm text-muted-foreground">Priority</p>
                                   {getPriorityBadge(query.priority)}
                                 </div>
                               </div>
 
                               <div>
-                                <p className="text-sm text-gray-600">Status</p>
+                                <p className="text-sm text-muted-foreground">Status</p>
                                 <div className="mt-1">
                                   {getStatusBadge(query.status, query.id)}
                                 </div>
                               </div>
 
                               <div>
-                                <label className="text-sm font-medium text-gray-700">Response</label>
+                                <label className="text-sm font-medium">Response</label>
                                 <Textarea
                                   placeholder="Type your response..."
                                   value={responseMessage}
@@ -549,7 +549,7 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
             {filteredQueries.length === 0 && (
               <div className="text-center py-8">
                 <HelpCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">No queries found matching your filters.</p>
+                <p className="text-muted-foreground">No queries found matching your filters.</p>
               </div>
             )}
           </CardContent>

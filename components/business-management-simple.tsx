@@ -430,7 +430,7 @@ export function BusinessManagementSimple() {
               
               {/* Debug info in development */}
               {process.env.NODE_ENV === 'development' && (
-                <div className="bg-gray-50 border border-gray-200 rounded-md p-2 text-xs text-gray-600">
+                <div className="bg-gray-50 border border-0 rounded-md p-2 text-xs text-gray-600">
                   <details>
                     <summary className="cursor-pointer font-medium">Debug Info</summary>
                     <div className="mt-2 space-y-1">

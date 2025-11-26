@@ -567,7 +567,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
 
   const renderBillPayment = () => (
     <div className="space-y-6">
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Record Rent Payment</CardTitle>
         </CardHeader>
@@ -710,7 +710,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
         </CardContent>
       </Card>
 
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Recent Payments</CardTitle>
         </CardHeader>
@@ -759,7 +759,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
   )
 
   const renderUnpaidBills = () => (
-    <Card className="border-gray-200">
+    <Card className="border-0">
       <CardHeader>
         <CardTitle className="text-lg font-semibold flex items-center justify-between">
           Unpaid Bills
@@ -883,7 +883,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
   )
 
   const renderPaidBills = () => (
-    <Card className="border-gray-200">
+    <Card className="border-0">
       <CardHeader>
         <CardTitle className="text-lg font-semibold flex items-center justify-between">
           Paid Bills
@@ -1004,7 +1004,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
 
   const renderPendingPayments = () => (
     <div className="space-y-6">
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-lg font-semibold flex items-center justify-between">
             Pending Payment Approvals

@@ -905,7 +905,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
   }
 
   const renderAddBusiness = () => (
-    <Card className="border-gray-200">
+    <Card className="border-0">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Add New Business</CardTitle>
       </CardHeader>
@@ -1281,7 +1281,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
   )
 
   const renderViewBusiness = () => (
-    <Card className="border-gray-200">
+    <Card className="border-0">
       <CardHeader className={isMobile ? "pb-3" : ""}>
         <div className={`flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'}`}>
           <CardTitle className={`font-semibold ${isMobile ? 'text-xl text-center' : 'text-lg'}`}>
@@ -1351,7 +1351,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
               filteredBusinesses.map((business) => (
                 <div
                   key={business.id}
-                  className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+                  className="bg-white border border-0 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
                 >
                   {/* Business Card Header */}
                   <div 
@@ -1382,7 +1382,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
                   </div>
                   
                   {/* Business Card Actions */}
-                  <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100">
+                  <div className="flex gap-2 mt-4 pt-3 border-t border-0">
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button
@@ -1445,7 +1445,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
                   
                   {/* Expanded Business Details */}
                   {expandedBusinesses.includes(business.id) && (
-                    <div className="mt-4 pt-4 border-t border-gray-200 space-y-4">
+                    <div className="mt-4 pt-4 border-t border-0 space-y-4">
                       {/* Business Details Section */}
                       <div className="space-y-3">
                         <h4 className="font-semibold text-base">Business Details</h4>
@@ -1760,7 +1760,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
                     <TableCell colSpan={6} className="bg-gray-50">
                       <div className="p-4 space-y-4">
                         {/* Business Details Section */}
-                        <div className="border-b border-gray-200 pb-4">
+                        <div className="border-b border-0 pb-4">
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="font-semibold text-sm">Business Details</h4>
                             {editingBusinessDetails === business.id ? (
@@ -1986,7 +1986,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
                         </div>
                         
                         {/* Login Credentials Section */}
-                        <div className="border-t border-gray-200 pt-4">
+                        <div className="border-t border-0 pt-4">
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="font-semibold text-sm">Login Credentials</h4>
                             {editingCredentials === business.id ? (
@@ -2169,7 +2169,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
 
   const renderFloors = () => (
     <div className="space-y-6">
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Add New Floor</CardTitle>
         </CardHeader>
@@ -2222,7 +2222,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
         </CardContent>
       </Card>
 
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">All Floors</CardTitle>
         </CardHeader>
@@ -2327,9 +2327,6 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
                         }}
                         className="w-20 h-8"
                       />
-                      <div className="text-xs text-gray-500 mt-1">
-                        Actual: {occupiedShops}
-                      </div>
                       {(floor.occupied_shops || occupiedShops) > (floor.total_shops || 0) && (
                         <div className="text-xs text-red-500 mt-1">
                           ⚠️ Cannot exceed {floor.total_shops || 0}
@@ -2499,7 +2496,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
 
   const renderAdvance = () => (
     <div className="space-y-6">
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Add New Advance Payment</CardTitle>
         </CardHeader>
@@ -2639,7 +2636,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
         </CardContent>
       </Card>
 
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Business Advance Management</CardTitle>
         </CardHeader>
@@ -2723,7 +2720,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
 
   const renderPartialPayments = () => (
     <div className="space-y-6">
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Create New Partial Payment</CardTitle>
         </CardHeader>
@@ -2827,8 +2824,8 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
           
           {/* Show rent preview */}
           {newPartialPayment.business_id && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <div className="text-sm text-blue-700">
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
+              <div className="text-sm text-blue-700 dark:text-blue-400">
                 <span className="font-medium">Monthly Rent:</span>
                 <span className="ml-2 text-blue-600 font-semibold">PKR {getSelectedBusinessForPartialPayment()?.rent_amount.toLocaleString()}</span>
               </div>
@@ -2852,7 +2849,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
         </CardContent>
       </Card>
 
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Partial Payment Records</CardTitle>
         </CardHeader>
@@ -2929,7 +2926,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
                           <h5 className="font-medium text-sm mb-3">Payment History</h5>
                           <div className="space-y-2">
                             {partialPayment.payment_entries.map((entry, index) => (
-                              <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                              <div key={index} className="flex justify-between items-center p-2 border rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                                 <div>
                                   <div className="text-sm font-medium">PKR {entry.amount.toLocaleString()}</div>
                                   <div className="text-xs text-gray-500">{new Date(entry.payment_date).toLocaleDateString()}</div>
@@ -2970,7 +2967,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
 
   const renderTheft = () => (
     <div className="space-y-6">
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Add Theft Record</CardTitle>
         </CardHeader>
@@ -3031,7 +3028,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
         </CardContent>
       </Card>
 
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Theft Records</CardTitle>
         </CardHeader>
@@ -3071,7 +3068,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
     const electricityManagedBusinesses = businesses.filter(business => business.electricity_management)
     
     return (
-      <Card className="border-gray-200">
+      <Card className="border-0">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Meter Load Management</CardTitle>
           <p className="text-sm text-gray-600">Only businesses with electricity management enabled are shown</p>

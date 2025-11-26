@@ -60,6 +60,10 @@ const WaveoffModule = dynamic(() => import("@/components/waveoff-module").then(m
   ssr: false,
   loading: () => <div className="p-6">Loading waved off bills...</div>,
 })
+const ExpenseManagement = dynamic(() => import("@/components/expense-management").then(m => m.ExpenseManagement), {
+  ssr: false,
+  loading: () => <div className="p-6">Loading expenses...</div>,
+})
 
 // Note: Using original CustomerManagement component with added validation
 
@@ -138,6 +142,16 @@ export const navigationItems: NavigationItem[] = [
       { id: "reports-electricity", label: "Electricity History" },
     ],
   },
+  {
+    id: "expenses",
+    label: "Expense Tracking",
+    subItems: [
+      { id: "expenses-dashboard", label: "Dashboard" },
+      { id: "expenses-staff", label: "Staff Management" },
+      { id: "expenses-fixed", label: "Fixed Expenses" },
+      { id: "expenses-variable", label: "Variable Expenses" },
+    ],
+  },
   // { id: "terms-conditions", label: "Terms & Conditions" },
   { id: "queries", label: "Queries" },
   { id: "waveoff", label: "Wave off" },
@@ -193,6 +207,11 @@ export function PlazaManagementApp() {
         return <ReportsModule activeSubSection={activeSection} />
       case "terms-conditions":
         return <TermsConditions />
+      case "expenses-dashboard":
+      case "expenses-staff":
+      case "expenses-fixed":
+      case "expenses-variable":
+        return <ExpenseManagement activeSubSection={activeSection} />
       case "queries":
         return <AdminQueries />
       case "waveoff":
@@ -207,7 +226,7 @@ export function PlazaManagementApp() {
   }
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex h-screen bg-background overflow-hidden">
       {/* Sidebar */}
       <Sidebar
         key={sidebarRefreshKey}
@@ -224,7 +243,7 @@ export function PlazaManagementApp() {
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Mobile Header - Only visible on mobile */}
         {isMobile && (
-          <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between lg:hidden z-30">
+          <header className="bg-background border-b border-border px-4 py-3 flex items-center justify-between lg:hidden z-30">
             <Button
               variant="ghost"
               size="sm"

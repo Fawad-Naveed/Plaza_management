@@ -739,7 +739,7 @@ export function BusinessManagementOptimized() {
               
               {/* Debug info in development */}
               {process.env.NODE_ENV === 'development' && (
-                <div className="bg-gray-50 border border-gray-200 rounded-md p-2 text-xs text-gray-600">
+                <div className="bg-gray-50 border border-0 rounded-md p-2 text-xs text-gray-600">
                   <details>
                     <summary className="cursor-pointer font-medium">Debug Info</summary>
                     <div className="mt-2 space-y-1">
@@ -1016,9 +1016,6 @@ export function BusinessManagementOptimized() {
                             }}
                             className="w-full"
                           />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Actual businesses: {actualOccupied}
-                          </p>
                           {(floor.occupied_shops || actualOccupied) > (floor.total_shops || 0) && (
                             <p className="text-xs text-red-500 mt-1">
                               ⚠️ Occupied shops cannot exceed total shops ({floor.total_shops || 0})
