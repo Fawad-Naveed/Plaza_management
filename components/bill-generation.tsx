@@ -29,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { FileText, Plus, Zap, Wrench, Search, Eye, Download, Loader2, Edit, Trash2, Printer, Flame } from "lucide-react"
+import { FileText, Plus, Zap, Wrench, Search, Eye, Download, Loader2, Edit, Trash2, Printer, Flame, Calendar } from "lucide-react"
 import { clientDb, type Business, type Bill as DBBill, type MeterReading, type Floor, type Advance, type PartialPayment, getInformation, type Information, updateMeterReading, type TermsCondition, getTCs, type TC } from "@/lib/database"
 import { TermsSelectionDialog } from "./terms-selection-dialog"
 import { useBreakpoint } from "@/hooks/use-mobile"
@@ -106,6 +106,11 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
   const [deletingBill, setDeletingBill] = useState<DBBill | null>(null)
   const [deletingMeterReading, setDeletingMeterReading] = useState<MeterReading | null>(null)
   const [isEditMode, setIsEditMode] = useState(false)
+  
+  // Date filter state
+  const [dateFilter, setDateFilter] = useState<"all" | "currentMonth" | "quarter" | "sixMonths" | "year" | "custom">("all")
+  const [customStartDate, setCustomStartDate] = useState("")
+  const [customEndDate, setCustomEndDate] = useState("")
   const [advanceWarning, setAdvanceWarning] = useState<{
     show: boolean;
     advance: Advance | null;
@@ -539,15 +544,23 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
         if (!business) return
 
         // Check for existing rent advance if generating rent bill
+        let advanceAmount = 0
         if ((billToProcess.billType === "rent" || isRentManagement)) {
           const existingAdvance = checkExistingAdvance(billToProcess.businessId, billToProcess.month, billToProcess.year)
           if (existingAdvance) {
-            setAdvanceWarning({
-              show: true,
-              advance: existingAdvance,
-              businessName: business.name
-            })
-            return // Stop bill creation and show warning dialog
+            // If advance exists and covers the full rent, block bill creation
+            const rentAmount = business.rent_amount || 0
+            if (existingAdvance.amount >= rentAmount) {
+              setAdvanceWarning({
+                show: true,
+                advance: existingAdvance,
+                businessName: business.name
+              })
+              setBillCreationLoading(false)
+              return // Stop bill creation - advance fully covers rent
+            }
+            // Otherwise, use advance amount to reduce the bill
+            advanceAmount = existingAdvance.amount
           }
         }
 
@@ -574,8 +587,9 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
         }
 
         if (billToProcess.billType === "rent" || isRentManagement) {
-          // For rent bills, use the rent amount from business data or manual input
-          maintenanceCharges = Number.parseFloat(billToProcess.maintenanceAmount) || business.rent_amount || 0
+          // For rent bills, use the rent amount from business data or manual input, minus any advance
+          const baseRentAmount = Number.parseFloat(billToProcess.maintenanceAmount) || business.rent_amount || 0
+          maintenanceCharges = Math.max(0, baseRentAmount - advanceAmount) // Subtract advance, minimum 0
         }
 
         const totalAmount = electricityCharges + gasCharges + maintenanceCharges + waterCharges + otherCharges
@@ -984,7 +998,49 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
     }
   }
 
-  const handleDeleteMeterReading = async () => {
+  // Date filtering helper function
+  const isWithinDateRange = (dateString: string) => {
+    if (dateFilter === "all") return true
+    
+    const billDate = new Date(dateString)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Reset time to start of day
+    
+    switch (dateFilter) {
+      case "currentMonth": {
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+        const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+        return billDate >= firstDayOfMonth && billDate <= lastDayOfMonth
+      }
+      case "quarter": {
+        const currentQuarter = Math.floor(today.getMonth() / 3)
+        const firstDayOfQuarter = new Date(today.getFullYear(), currentQuarter * 3, 1)
+        const lastDayOfQuarter = new Date(today.getFullYear(), currentQuarter * 3 + 3, 0)
+        return billDate >= firstDayOfQuarter && billDate <= lastDayOfQuarter
+      }
+      case "sixMonths": {
+        const sixMonthsAgo = new Date(today)
+        sixMonthsAgo.setMonth(today.getMonth() - 6)
+        return billDate >= sixMonthsAgo && billDate <= today
+      }
+      case "year": {
+        const oneYearAgo = new Date(today)
+        oneYearAgo.setFullYear(today.getFullYear() - 1)
+        return billDate >= oneYearAgo && billDate <= today
+      }
+      case "custom": {
+        if (!customStartDate || !customEndDate) return true
+        const startDate = new Date(customStartDate)
+        const endDate = new Date(customEndDate)
+        endDate.setHours(23, 59, 59, 999) // Include the entire end date
+        return billDate >= startDate && billDate <= endDate
+      }
+      default:
+        return true
+    }
+  }
+
+  const handleDeleteMeterReading = async (readingId: string) => {
     if (!deletingMeterReading) return
 
     try {
@@ -1196,16 +1252,19 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
       shopNumber.toLowerCase().includes(searchTerm.toLowerCase())
     )
     
+    // Filter by date range
+    const matchesDateRange = isWithinDateRange(bill.bill_date)
+    
     // Filter by management mode
     if (isRentManagement) {
-      return matchesSearch && bill.bill_number.startsWith('RENT')
+      return matchesSearch && matchesDateRange && bill.bill_number.startsWith('RENT')
     } else if (isElectricityManagement) {
-      return matchesSearch && bill.bill_number.startsWith('ELE')
+      return matchesSearch && matchesDateRange && bill.bill_number.startsWith('ELE')
     } else if (isGasManagement) {
-      return matchesSearch && bill.bill_number.startsWith('GAS')
+      return matchesSearch && matchesDateRange && bill.bill_number.startsWith('GAS')
     }
     
-    return matchesSearch
+    return matchesSearch && matchesDateRange
   })
 
   // Get electricity meter readings for electricity management
@@ -1218,7 +1277,10 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
       shopNumber.toLowerCase().includes(searchTerm.toLowerCase())
     )
     
-    return reading.meter_type === "electricity" && matchesSearch
+    // Filter by date range using reading_date
+    const matchesDateRange = isWithinDateRange(reading.reading_date)
+    
+    return reading.meter_type === "electricity" && matchesSearch && matchesDateRange
   }) : []
 
   // Get gas meter readings for gas management
@@ -1231,25 +1293,36 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
       shopNumber.toLowerCase().includes(searchTerm.toLowerCase())
     )
     
-    return reading.meter_type === "gas" && matchesSearch
+    // Filter by date range using reading_date
+    const matchesDateRange = isWithinDateRange(reading.reading_date)
+    
+    return reading.meter_type === "gas" && matchesSearch && matchesDateRange
   }) : []
 
   // Get rent advances to display alongside bills in rent management mode (not for electricity)
-  const rentAdvances = isRentManagement ? advances.filter(advance => 
-    advance.type === "rent" && 
-    advance.status === "active" &&
-    (searchTerm === "" || 
-     getBusinessName(advance.business_id).toLowerCase().includes(searchTerm.toLowerCase()) ||
-     getBusinessShop(advance.business_id).toLowerCase().includes(searchTerm.toLowerCase()))
-  ) : []
+  const rentAdvances = isRentManagement ? advances.filter(advance => {
+    const matchesSearch = searchTerm === "" || 
+      getBusinessName(advance.business_id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getBusinessShop(advance.business_id).toLowerCase().includes(searchTerm.toLowerCase())
+    
+    // Filter by date range using created_at or payment_date if available
+    const dateToCheck = advance.payment_date || advance.created_at
+    const matchesDateRange = isWithinDateRange(dateToCheck)
+    
+    return advance.type === "rent" && advance.status === "active" && matchesSearch && matchesDateRange
+  }) : []
 
   // Get partial payments for rent management mode
-  const filteredPartialPayments = isRentManagement ? partialPayments.filter(partialPayment => 
-    partialPayment.status === "active" &&
-    (searchTerm === "" || 
-     getBusinessName(partialPayment.business_id).toLowerCase().includes(searchTerm.toLowerCase()) ||
-     getBusinessShop(partialPayment.business_id).toLowerCase().includes(searchTerm.toLowerCase()))
-  ) : []
+  const filteredPartialPayments = isRentManagement ? partialPayments.filter(partialPayment => {
+    const matchesSearch = searchTerm === "" || 
+      getBusinessName(partialPayment.business_id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getBusinessShop(partialPayment.business_id).toLowerCase().includes(searchTerm.toLowerCase())
+    
+    // Filter by date range using created_at
+    const matchesDateRange = isWithinDateRange(partialPayment.created_at)
+    
+    return partialPayment.status === "active" && matchesSearch && matchesDateRange
+  }) : []
 
   // Filter bills by status for rent management
   const paidBills = filteredBills.filter(bill => bill.status === "paid")
@@ -2428,6 +2501,61 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
     if (isRentManagement || isElectricityManagement || isGasManagement) {
       return (
         <div className="space-y-6">
+          {/* Date Filter Controls */}
+          <Card className="border-0">
+            <CardContent className="pt-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 md:max-w-xs">
+                  <Label htmlFor="dateFilter" className="text-sm font-medium mb-2 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Filter by Date
+                  </Label>
+                  <Select value={dateFilter} onValueChange={(value: any) => setDateFilter(value)}>
+                    <SelectTrigger id="dateFilter">
+                      <SelectValue placeholder="All Time" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Time</SelectItem>
+                      <SelectItem value="currentMonth">Current Month</SelectItem>
+                      <SelectItem value="quarter">Current Quarter</SelectItem>
+                      <SelectItem value="sixMonths">Last 6 Months</SelectItem>
+                      <SelectItem value="year">Last Year</SelectItem>
+                      <SelectItem value="custom">Custom Range</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {dateFilter === "custom" && (
+                  <>
+                    <div className="flex-1 md:max-w-xs">
+                      <Label htmlFor="customStartDate" className="text-sm font-medium mb-2">
+                        Start Date
+                      </Label>
+                      <Input
+                        id="customStartDate"
+                        type="date"
+                        value={customStartDate}
+                        onChange={(e) => setCustomStartDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex-1 md:max-w-xs">
+                      <Label htmlFor="customEndDate" className="text-sm font-medium mb-2">
+                        End Date
+                      </Label>
+                      <Input
+                        id="customEndDate"
+                        type="date"
+                        value={customEndDate}
+                        onChange={(e) => setCustomEndDate(e.target.value)}
+                        min={customStartDate}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          
           <Tabs value={billsSubTab} onValueChange={setBillsSubTab}>
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="all">
@@ -2472,21 +2600,77 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
 
     // Default behavior for non-rent management
     return (
-      <Card className="border-0">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold flex items-center justify-between">
-            All Bills
-            <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-gray-500" />
-              <Input
-                placeholder="Search bills..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-64"
-              />
+      <div className="space-y-6">
+        {/* Date Filter Controls */}
+        <Card className="border-0">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 md:max-w-xs">
+                <Label htmlFor="dateFilter" className="text-sm font-medium mb-2 flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Filter by Date
+                </Label>
+                <Select value={dateFilter} onValueChange={(value: any) => setDateFilter(value)}>
+                  <SelectTrigger id="dateFilter">
+                    <SelectValue placeholder="All Time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="currentMonth">Current Month</SelectItem>
+                    <SelectItem value="quarter">Current Quarter</SelectItem>
+                    <SelectItem value="sixMonths">Last 6 Months</SelectItem>
+                    <SelectItem value="year">Last Year</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {dateFilter === "custom" && (
+                <>
+                  <div className="flex-1 md:max-w-xs">
+                    <Label htmlFor="customStartDate" className="text-sm font-medium mb-2">
+                      Start Date
+                    </Label>
+                    <Input
+                      id="customStartDate"
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-1 md:max-w-xs">
+                    <Label htmlFor="customEndDate" className="text-sm font-medium mb-2">
+                      End Date
+                    </Label>
+                    <Input
+                      id="customEndDate"
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      min={customStartDate}
+                    />
+                  </div>
+                </>
+              )}
             </div>
-          </CardTitle>
-        </CardHeader>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-0">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold flex items-center justify-between">
+              All Bills
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4 text-gray-500" />
+                <Input
+                  placeholder="Search bills..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-64"
+                />
+              </div>
+            </CardTitle>
+          </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -2567,6 +2751,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
           )}
         </CardContent>
       </Card>
+      </div>
     )
   }
 
@@ -2761,24 +2946,24 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
                 )}.
               </p>
               {advanceWarning.advance && (
-                <div className="mt-3 p-3 bg-blue-50 rounded-md">
-                  <p className="text-sm">
-                    <strong>Advance Details:</strong>
+                <div className="mt-3 p-3 bg-blue-500/10 dark:bg-blue-500/20 rounded-md border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm font-semibold text-foreground">
+                    Advance Details:
                   </p>
-                  <p className="text-sm">
+                  <p className="text-sm text-foreground">
                     • Amount: PKR {advanceWarning.advance.amount.toLocaleString()}
                   </p>
-                  <p className="text-sm">
+                  <p className="text-sm text-foreground">
                     • Date: {advanceWarning.advance.advance_date}
                   </p>
                   {advanceWarning.advance.purpose && (
-                    <p className="text-sm">
+                    <p className="text-sm text-foreground">
                       • Purpose: {advanceWarning.advance.purpose}
                     </p>
                   )}
                 </div>
               )}
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="text-sm text-muted-foreground mt-2">
                 You cannot generate a new bill for this month as the advance payment already covers it.
               </p>
             </AlertDialogDescription>
@@ -2802,19 +2987,19 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
           </DialogHeader>
           {addingPaymentToPartial && (
             <div className="space-y-4">
-              <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="p-4 bg-accent/50 rounded-lg border border-border">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium">Total Rent:</span>
-                    <br />PKR {addingPaymentToPartial.total_rent_amount.toFixed(2)}
+                    <span className="font-medium text-foreground">Total Rent:</span>
+                    <br /><span className="text-foreground">PKR {addingPaymentToPartial.total_rent_amount.toFixed(2)}</span>
                   </div>
                   <div>
-                    <span className="font-medium">Already Paid:</span>
-                    <br />PKR {addingPaymentToPartial.total_paid_amount.toFixed(2)}
+                    <span className="font-medium text-foreground">Already Paid:</span>
+                    <br /><span className="text-foreground">PKR {addingPaymentToPartial.total_paid_amount.toFixed(2)}</span>
                   </div>
                   <div className="col-span-2">
-                    <span className="font-medium">Remaining Amount:</span>
-                    <br />PKR {(addingPaymentToPartial.total_rent_amount - addingPaymentToPartial.total_paid_amount).toFixed(2)}
+                    <span className="font-medium text-foreground">Remaining Amount:</span>
+                    <br /><span className="text-foreground font-semibold">PKR {(addingPaymentToPartial.total_rent_amount - addingPaymentToPartial.total_paid_amount).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
