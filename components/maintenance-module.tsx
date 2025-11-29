@@ -144,6 +144,11 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
   const [searchTerm, setSearchTerm] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Date filter state
+  const [dateFilter, setDateFilter] = useState<"all" | "currentMonth" | "quarter" | "sixMonths" | "year" | "custom">("all")
+  const [customStartDate, setCustomStartDate] = useState("")
+  const [customEndDate, setCustomEndDate] = useState("")
 
   // Data states
   const [businesses, setBusinesses] = useState<Business[]>([])
@@ -695,12 +700,59 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
     }
   }
 
+  // Date filtering helper function
+  const isWithinDateRange = (dateString: string) => {
+    if (dateFilter === "all") return true
+    
+    const billDate = new Date(dateString)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    switch (dateFilter) {
+      case "currentMonth": {
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+        const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+        return billDate >= firstDayOfMonth && billDate <= lastDayOfMonth
+      }
+      case "quarter": {
+        const currentQuarter = Math.floor(today.getMonth() / 3)
+        const firstDayOfQuarter = new Date(today.getFullYear(), currentQuarter * 3, 1)
+        const lastDayOfQuarter = new Date(today.getFullYear(), currentQuarter * 3 + 3, 0)
+        return billDate >= firstDayOfQuarter && billDate <= lastDayOfQuarter
+      }
+      case "sixMonths": {
+        const sixMonthsAgo = new Date(today)
+        sixMonthsAgo.setMonth(today.getMonth() - 6)
+        return billDate >= sixMonthsAgo && billDate <= today
+      }
+      case "year": {
+        const oneYearAgo = new Date(today)
+        oneYearAgo.setFullYear(today.getFullYear() - 1)
+        return billDate >= oneYearAgo && billDate <= today
+      }
+      case "custom": {
+        if (!customStartDate || !customEndDate) return true
+        const startDate = new Date(customStartDate)
+        const endDate = new Date(customEndDate)
+        endDate.setHours(23, 59, 59, 999)
+        return billDate >= startDate && billDate <= endDate
+      }
+      default:
+        return true
+    }
+  }
+
   // Filter functions
   const filteredBills = maintenanceBills.filter(
-    (bill) =>
-      bill.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bill.billNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bill.shopNumber.toLowerCase().includes(searchTerm.toLowerCase()),
+    (bill) => {
+      const matchesSearch = bill.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bill.billNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bill.shopNumber.toLowerCase().includes(searchTerm.toLowerCase())
+      
+      const matchesDateRange = isWithinDateRange(bill.billDate)
+      
+      return matchesSearch && matchesDateRange
+    }
   )
 
   const filteredPayments = maintenancePayments.filter(
@@ -744,6 +796,63 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
 
   const renderBillsTab = () => (
     <div className="space-y-6">
+      {/* Date Filter Controls */}
+      {billsSubTab !== "all" && (
+        <Card className="border-0">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 md:max-w-xs">
+                <Label htmlFor="dateFilter" className="text-sm font-medium mb-2 flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Filter by Date
+                </Label>
+                <Select value={dateFilter} onValueChange={(value: any) => setDateFilter(value)}>
+                  <SelectTrigger id="dateFilter">
+                    <SelectValue placeholder="All Time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="currentMonth">Current Month</SelectItem>
+                    <SelectItem value="quarter">Current Quarter</SelectItem>
+                    <SelectItem value="sixMonths">Last 6 Months</SelectItem>
+                    <SelectItem value="year">Last Year</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {dateFilter === "custom" && (
+                <>
+                  <div className="flex-1 md:max-w-xs">
+                    <Label htmlFor="customStartDate" className="text-sm font-medium mb-2">
+                      Start Date
+                    </Label>
+                    <Input
+                      id="customStartDate"
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-1 md:max-w-xs">
+                    <Label htmlFor="customEndDate" className="text-sm font-medium mb-2">
+                      End Date
+                    </Label>
+                    <Input
+                      id="customEndDate"
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      min={customStartDate}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
       {/* Bills Sub-tabs */}
       <Tabs value={billsSubTab} onValueChange={setBillsSubTab}>
         <TabsList className="grid w-full grid-cols-4">
@@ -789,7 +898,7 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="customer">Customer</Label>
+                <Label htmlFor="customer">Customer <span className="text-red-500">*</span></Label>
                 <Select
                   value={newBill.customerId}
                   onValueChange={(value) => setNewBill({ ...newBill, customerId: value })}
@@ -808,7 +917,7 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
+                <Label htmlFor="category">Category <span className="text-red-500">*</span></Label>
                 <Select
                   value={newBill.category}
                   onValueChange={(value: "cleaning" | "repair" | "general" | "emergency") =>
@@ -848,7 +957,7 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="amount">Amount (PKR )</Label>
+                <Label htmlFor="amount">Amount (PKR) <span className="text-red-500">*</span></Label>
                 <Input
                   id="amount"
                   type="text"
@@ -860,7 +969,7 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="dueDate">Due Date</Label>
+                <Label htmlFor="dueDate">Due Date <span className="text-red-500">*</span></Label>
                 <Input
                   id="dueDate"
                   type="date"
@@ -1180,6 +1289,63 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
 
   const renderBillsContentWithSubTab = (subTab: string) => (
     <div className="space-y-6">
+      {/* Date Filter Controls */}
+      {subTab !== "all" && (
+        <Card className="border-0">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 md:max-w-xs">
+                <Label htmlFor="dateFilter" className="text-sm font-medium mb-2 flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Filter by Date
+                </Label>
+                <Select value={dateFilter} onValueChange={(value: any) => setDateFilter(value)}>
+                  <SelectTrigger id="dateFilter">
+                    <SelectValue placeholder="All Time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="currentMonth">Current Month</SelectItem>
+                    <SelectItem value="quarter">Current Quarter</SelectItem>
+                    <SelectItem value="sixMonths">Last 6 Months</SelectItem>
+                    <SelectItem value="year">Last Year</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {dateFilter === "custom" && (
+                <>
+                  <div className="flex-1 md:max-w-xs">
+                    <Label htmlFor="customStartDate" className="text-sm font-medium mb-2">
+                      Start Date
+                    </Label>
+                    <Input
+                      id="customStartDate"
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-1 md:max-w-xs">
+                    <Label htmlFor="customEndDate" className="text-sm font-medium mb-2">
+                      End Date
+                    </Label>
+                    <Input
+                      id="customEndDate"
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      min={customStartDate}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
       {/* Create Bill Form - Only show in 'all' tab */}
       {subTab === "all" && (
         <Card>
@@ -1277,12 +1443,19 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="p-4">
             <div className="flex items-center gap-2">
-              <AlertCircle className={`h-5 w-5 ${subTab === "unpaid" ? "text-red-500" : "text-green-500"}`} />
+              <AlertCircle className={`h-5 w-5 ${
+                subTab === "unpaid" ? "text-red-500" : 
+                subTab === "waveoff" ? "text-blue-500" : "text-green-500"
+              }`} />
               <div>
                 <div className="text-sm text-gray-600">
-                  {subTab === "unpaid" ? "Unpaid Bills" : "Paid Bills"}
+                  {subTab === "unpaid" ? "Unpaid Bills" : 
+                   subTab === "waveoff" ? "Waved Off Bills" : "Paid Bills"}
                 </div>
-                <div className={`text-xl font-bold ${subTab === "unpaid" ? "text-red-600" : "text-green-600"}`}>
+                <div className={`text-xl font-bold ${
+                  subTab === "unpaid" ? "text-red-600" : 
+                  subTab === "waveoff" ? "text-blue-600" : "text-green-600"
+                }`}>
                   {getCurrentBills(subTab).length}
                 </div>
               </div>
@@ -1293,11 +1466,13 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
               <DollarSign className="h-5 w-5 text-blue-500" />
               <div>
                 <div className="text-sm text-gray-600">
-                  {subTab === "unpaid" ? "Total Outstanding" : "Total Collected"}
+                  {subTab === "unpaid" ? "Total Outstanding" : 
+                   subTab === "waveoff" ? "Total Waved Off" : "Total Collected"}
                 </div>
                 <div className="text-xl font-bold text-blue-600">
                   PKR {getCurrentBills(subTab).reduce((sum, bill) =>
-                    sum + (subTab === "unpaid" ? bill.remainingAmount : bill.paidAmount), 0
+                    sum + (subTab === "unpaid" ? bill.remainingAmount : 
+                           subTab === "waveoff" ? bill.amount : bill.paidAmount), 0
                   ).toFixed(2)}
                 </div>
               </div>
@@ -1327,6 +1502,7 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
             {subTab === "all" && "All Maintenance Bills"}
             {subTab === "paid" && "Paid Maintenance Bills"}
             {subTab === "unpaid" && "Unpaid Maintenance Bills"}
+            {subTab === "waveoff" && "Waved Off Maintenance Bills"}
           </CardTitle>
           <div className="flex items-center gap-2">
             <Search className="h-4 w-4 text-gray-500" />

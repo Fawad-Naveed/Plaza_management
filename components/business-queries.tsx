@@ -275,8 +275,8 @@ export function BusinessQueries() {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="bg-card rounded-xl shadow-sm border border-border p-6">
-          <div className="flex items-center justify-between">
+        <div className="bg-card rounded-xl shadow-sm border border-border p-4 md:p-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <HelpCircle className="h-6 w-6 text-blue-600" />
@@ -291,7 +291,7 @@ export function BusinessQueries() {
             </div>
             <Dialog open={showNewQueryDialog} onOpenChange={setShowNewQueryDialog}>
               <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button className="bg-blue-600 hover:bg-blue-700 w-full md:w-auto">
                   <Plus className="h-4 w-4 mr-2" />
                   Submit New Query
                 </Button>
@@ -486,115 +486,217 @@ export function BusinessQueries() {
                     </Button>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Query Details</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead>Priority</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Submitted</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {queries.map((query) => (
-                        <TableRow key={query.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-foreground">{query.title}</p>
-                              <p className="text-sm text-muted-foreground truncate max-w-xs">
-                                {query.description}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {getCategoryIcon(query.category)}
-                              <span className="capitalize">{query.category}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {getPriorityBadge(query.priority)}
-                          </TableCell>
-                          <TableCell>
-                            {getStatusBadge(query.status, query.id)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              <p>{formatDate(query.createdAt)}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setSelectedQuery(query)}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-2xl">
-                                <DialogHeader>
-                                  <DialogTitle>Query Details</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <div>
-                                    <h3 className="font-semibold text-lg text-foreground">{query.title}</h3>
-                                    <p className="text-muted-foreground mt-2">{query.description}</p>
-                                  </div>
-                                  
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <p className="text-sm text-muted-foreground">Category</p>
-                                      <div className="flex items-center gap-2 mt-1">
-                                        {getCategoryIcon(query.category)}
-                                        <span className="capitalize font-medium">{query.category}</span>
+                  <>
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Query Details</TableHead>
+                            <TableHead>Category</TableHead>
+                            <TableHead>Priority</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Submitted</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {queries.map((query) => (
+                            <TableRow key={query.id}>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium text-foreground">{query.title}</p>
+                                  <p className="text-sm text-muted-foreground truncate max-w-xs">
+                                    {query.description}
+                                  </p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  {getCategoryIcon(query.category)}
+                                  <span className="capitalize">{query.category}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {getPriorityBadge(query.priority)}
+                              </TableCell>
+                              <TableCell>
+                                {getStatusBadge(query.status, query.id)}
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-sm">
+                                  <p>{formatDate(query.createdAt)}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setSelectedQuery(query)}
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-2xl">
+                                    <DialogHeader>
+                                      <DialogTitle>Query Details</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4">
+                                      <div>
+                                        <h3 className="font-semibold text-lg text-foreground">{query.title}</h3>
+                                        <p className="text-muted-foreground mt-2">{query.description}</p>
                                       </div>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm text-muted-foreground">Priority</p>
-                                      <div className="mt-1">
-                                        {getPriorityBadge(query.priority)}
+                                      
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                          <p className="text-sm text-muted-foreground">Category</p>
+                                          <div className="flex items-center gap-2 mt-1">
+                                            {getCategoryIcon(query.category)}
+                                            <span className="capitalize font-medium">{query.category}</span>
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm text-muted-foreground">Priority</p>
+                                          <div className="mt-1">
+                                            {getPriorityBadge(query.priority)}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm text-muted-foreground">Status</p>
+                                          <div className="mt-1">
+                                            {getStatusBadge(query.status, query.id)}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm text-muted-foreground">Submitted</p>
+                                          <p className="font-medium text-foreground">{formatDate(query.createdAt)}</p>
+                                        </div>
                                       </div>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm text-muted-foreground">Status</p>
-                                      <div className="mt-1">
-                                        {getStatusBadge(query.status, query.id)}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm text-muted-foreground">Submitted</p>
-                                      <p className="font-medium text-foreground">{formatDate(query.createdAt)}</p>
-                                    </div>
-                                  </div>
 
-                                  {query.adminResponse && (
-                                    <div className="bg-blue-50 p-4 rounded-lg">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <MessageCircle className="h-4 w-4 text-blue-600" />
-                                        <p className="font-medium text-blue-900">Admin Response</p>
-                                      </div>
-                                      <p className="text-blue-800 mb-2">{query.adminResponse}</p>
-                                      {query.adminResponseDate && (
-                                        <p className="text-xs text-blue-600">
-                                          <Calendar className="h-3 w-3 inline mr-1" />
-                                          {formatDate(query.adminResponseDate)}
-                                        </p>
+                                      {query.adminResponse && (
+                                        <div className="bg-blue-50 p-4 rounded-lg">
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <MessageCircle className="h-4 w-4 text-blue-600" />
+                                            <p className="font-medium text-blue-900">Admin Response</p>
+                                          </div>
+                                          <p className="text-blue-800 mb-2">{query.adminResponse}</p>
+                                          {query.adminResponseDate && (
+                                            <p className="text-xs text-blue-600">
+                                              <Calendar className="h-3 w-3 inline mr-1" />
+                                              {formatDate(query.adminResponseDate)}
+                                            </p>
+                                          )}
+                                        </div>
                                       )}
                                     </div>
-                                  )}
+                                  </DialogContent>
+                                </Dialog>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Mobile Card View */}
+                    <div className="md:hidden space-y-4">
+                      {queries.map((query) => (
+                        <Card key={query.id} className="border-l-4 border-l-blue-500">
+                          <CardContent className="p-4">
+                            <div className="space-y-3">
+                              <div>
+                                <h3 className="font-semibold text-foreground mb-1">{query.title}</h3>
+                                <p className="text-sm text-muted-foreground line-clamp-2">{query.description}</p>
+                              </div>
+                              
+                              <div className="flex flex-wrap gap-2">
+                                <div className="flex items-center gap-1 text-sm">
+                                  {getCategoryIcon(query.category)}
+                                  <span className="capitalize text-muted-foreground">{query.category}</span>
                                 </div>
-                              </DialogContent>
-                            </Dialog>
-                          </TableCell>
-                        </TableRow>
+                                {getPriorityBadge(query.priority)}
+                                {getStatusBadge(query.status, query.id)}
+                              </div>
+                              
+                              <div className="flex items-center justify-between pt-2 border-t">
+                                <div className="text-xs text-muted-foreground">
+                                  <Calendar className="h-3 w-3 inline mr-1" />
+                                  {new Date(query.createdAt).toLocaleDateString()}
+                                </div>
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setSelectedQuery(query)}
+                                    >
+                                      <Eye className="h-4 w-4 mr-1" />
+                                      View
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-[95vw] md:max-w-2xl max-h-[90vh] overflow-y-auto">
+                                    <DialogHeader>
+                                      <DialogTitle>Query Details</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4">
+                                      <div>
+                                        <h3 className="font-semibold text-lg text-foreground">{query.title}</h3>
+                                        <p className="text-muted-foreground mt-2">{query.description}</p>
+                                      </div>
+                                      
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                          <p className="text-sm text-muted-foreground">Category</p>
+                                          <div className="flex items-center gap-2 mt-1">
+                                            {getCategoryIcon(query.category)}
+                                            <span className="capitalize font-medium">{query.category}</span>
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm text-muted-foreground">Priority</p>
+                                          <div className="mt-1">
+                                            {getPriorityBadge(query.priority)}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm text-muted-foreground">Status</p>
+                                          <div className="mt-1">
+                                            {getStatusBadge(query.status, query.id)}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm text-muted-foreground">Submitted</p>
+                                          <p className="font-medium text-foreground text-sm">{formatDate(query.createdAt)}</p>
+                                        </div>
+                                      </div>
+
+                                      {query.adminResponse && (
+                                        <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <MessageCircle className="h-4 w-4 text-blue-600" />
+                                            <p className="font-medium text-blue-900 dark:text-blue-100">Admin Response</p>
+                                          </div>
+                                          <p className="text-blue-800 dark:text-blue-200 mb-2">{query.adminResponse}</p>
+                                          {query.adminResponseDate && (
+                                            <p className="text-xs text-blue-600 dark:text-blue-300">
+                                              <Calendar className="h-3 w-3 inline mr-1" />
+                                              {formatDate(query.adminResponseDate)}
+                                            </p>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       ))}
-                    </TableBody>
-                  </Table>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
