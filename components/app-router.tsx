@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { SigninPage } from "./signin-page"
 import { BusinessPortal } from "./business-portal"
 import { PlazaManagementApp } from "./plaza-management-app"
+import { OwnerPortal } from "./owner-portal"
 import { getAuthState, type AuthResult } from "@/lib/auth"
 
 export function AppRouter() {
@@ -41,9 +42,14 @@ export function AppRouter() {
     return <SigninPage />
   }
 
-  // Admin authenticated - show admin interface (full plaza management app)
+  // Owner authenticated - show owner portal (full access + admin management)
+  if (authState.role === 'owner') {
+    return <OwnerPortal />
+  }
+
+  // Admin authenticated - show admin interface with permission filtering
   if (authState.role === 'admin') {
-    return <PlazaManagementApp />
+    return <PlazaManagementApp permissions={authState.permissions || []} />
   }
 
   // Business authenticated - show business portal

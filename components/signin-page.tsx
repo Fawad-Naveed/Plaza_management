@@ -131,6 +131,12 @@ export function SigninPage() {
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="owner">
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-purple-600" />
+                        Owner
+                      </div>
+                    </SelectItem>
                     <SelectItem value="admin">
                       <div className="flex items-center gap-2">
                         <Shield className="h-4 w-4" />
@@ -225,8 +231,9 @@ export function SigninPage() {
             {/* Help Text */}
             <div className="mt-6 text-center text-sm text-gray-600">
               <div className="space-y-2">
-                <p><strong>Admin:</strong> Use admin credentials</p>
-                <p><strong>Business:</strong> Use your business username and password</p>
+                <p><strong>Owner:</strong> Full system access with admin management</p>
+                <p><strong>Admin:</strong> Access based on assigned permissions</p>
+                <p><strong>Business:</strong> Business portal access</p>
               </div>
             </div>
           </CardContent>

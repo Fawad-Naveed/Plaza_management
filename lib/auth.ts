@@ -13,14 +13,17 @@ const ADMIN_CREDENTIALS = {
 export interface LoginCredentials {
   username: string
   password: string
-  role: 'admin' | 'business'
+  role: 'owner' | 'admin' | 'business'
 }
 
 export interface AuthResult {
   success: boolean
-  role?: 'admin' | 'business'
+  role?: 'owner' | 'admin' | 'business'
+  userId?: string
   businessId?: string
   businessName?: string
+  userName?: string
+  permissions?: string[]
   message?: string
 }
 
@@ -40,19 +43,95 @@ export async function login(credentials: LoginCredentials): Promise<AuthResult> 
   const { username, password, role } = credentials
 
   try {
-    // Handle admin login
-    if (role === 'admin') {
-      if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+    // Handle owner login
+    if (role === 'owner') {
+      const supabase = createClient()
+      
+      // Find owner by username
+      const { data: owner, error } = await supabase
+        .from('owners')
+        .select('id, username, password_hash, email, full_name')
+        .eq('username', username)
+        .single()
+
+      if (error || !owner) {
+        return {
+          success: false,
+          message: 'Owner not found or invalid username'
+        }
+      }
+
+      // Verify password
+      const passwordMatch = await verifyPassword(password, owner.password_hash)
+      
+      if (passwordMatch) {
         return {
           success: true,
-          role: 'admin',
-          message: 'Admin login successful'
+          role: 'owner',
+          userId: owner.id,
+          userName: owner.full_name || owner.username,
+          message: 'Owner login successful'
         }
       } else {
         return {
           success: false,
-          message: 'Invalid admin credentials'
+          message: 'Invalid password'
         }
+      }
+    }
+
+    // Handle admin login
+    if (role === 'admin') {
+      const supabase = createClient()
+      
+      // Find admin by username
+      const { data: admin, error } = await supabase
+        .from('admins')
+        .select('id, username, password_hash, email, full_name, is_active')
+        .eq('username', username)
+        .single()
+
+      if (error || !admin) {
+        return {
+          success: false,
+          message: 'Admin not found or invalid username'
+        }
+      }
+
+      // Check if admin is active
+      if (!admin.is_active) {
+        return {
+          success: false,
+          message: 'Admin account is disabled. Contact owner.'
+        }
+      }
+
+      // Verify password
+      const passwordMatch = await verifyPassword(password, admin.password_hash)
+      
+      if (!passwordMatch) {
+        return {
+          success: false,
+          message: 'Invalid password'
+        }
+      }
+
+      // Load admin permissions
+      const { data: permissions, error: permError } = await supabase
+        .from('admin_permissions')
+        .select('permission_key')
+        .eq('admin_id', admin.id)
+        .eq('can_access', true)
+
+      const permissionKeys = permissions?.map(p => p.permission_key) || []
+
+      return {
+        success: true,
+        role: 'admin',
+        userId: admin.id,
+        userName: admin.full_name,
+        permissions: permissionKeys,
+        message: 'Admin login successful'
       }
     }
 

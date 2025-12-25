@@ -2131,3 +2131,272 @@ export async function getPendingPaymentsByBusiness(businessId: string) {
   }
   return result.data || []
 }
+
+// Admin Management Functions
+export interface Admin {
+  id: string
+  username: string
+  email: string
+  full_name: string
+  created_by: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminWithPermissions extends Admin {
+  permissions: string[]
+}
+
+export interface CreateAdminData {
+  username: string
+  password_hash: string
+  email: string
+  full_name: string
+  created_by: string
+  permissions: string[]
+}
+
+export interface UpdateAdminData {
+  email?: string
+  full_name?: string
+  is_active?: boolean
+  password_hash?: string
+}
+
+// Get all admins with their permissions
+export async function getAllAdmins(): Promise<AdminWithPermissions[]> {
+  const supabase = createBrowserClient()
+  
+  // Get all admins
+  const { data: admins, error: adminError } = await supabase
+    .from('admins')
+    .select('*')
+    .order('created_at', { ascending: false })
+  
+  if (adminError) {
+    throw new Error(adminError.message)
+  }
+  
+  if (!admins || admins.length === 0) {
+    return []
+  }
+  
+  // Get permissions for all admins
+  const { data: permissions, error: permError } = await supabase
+    .from('admin_permissions')
+    .select('admin_id, permission_key')
+    .eq('can_access', true)
+  
+  if (permError) {
+    throw new Error(permError.message)
+  }
+  
+  // Group permissions by admin_id
+  const permissionMap = new Map<string, string[]>()
+  permissions?.forEach(p => {
+    if (!permissionMap.has(p.admin_id)) {
+      permissionMap.set(p.admin_id, [])
+    }
+    permissionMap.get(p.admin_id)?.push(p.permission_key)
+  })
+  
+  // Combine admins with their permissions
+  return admins.map(admin => ({
+    ...admin,
+    permissions: permissionMap.get(admin.id) || []
+  }))
+}
+
+// Get a single admin with permissions
+export async function getAdminById(adminId: string): Promise<AdminWithPermissions | null> {
+  const supabase = createBrowserClient()
+  
+  const { data: admin, error: adminError } = await supabase
+    .from('admins')
+    .select('*')
+    .eq('id', adminId)
+    .single()
+  
+  if (adminError) {
+    throw new Error(adminError.message)
+  }
+  
+  if (!admin) {
+    return null
+  }
+  
+  // Get permissions
+  const { data: permissions, error: permError } = await supabase
+    .from('admin_permissions')
+    .select('permission_key')
+    .eq('admin_id', adminId)
+    .eq('can_access', true)
+  
+  if (permError) {
+    throw new Error(permError.message)
+  }
+  
+  return {
+    ...admin,
+    permissions: permissions?.map(p => p.permission_key) || []
+  }
+}
+
+// Create a new admin with permissions
+export async function createAdmin(adminData: CreateAdminData): Promise<Admin> {
+  const supabase = createBrowserClient()
+  
+  // Create admin
+  const { data: admin, error: adminError } = await supabase
+    .from('admins')
+    .insert({
+      username: adminData.username,
+      password_hash: adminData.password_hash,
+      email: adminData.email,
+      full_name: adminData.full_name,
+      created_by: adminData.created_by,
+      is_active: true
+    })
+    .select()
+    .single()
+  
+  if (adminError) {
+    throw new Error(adminError.message)
+  }
+  
+  // Create permissions
+  if (adminData.permissions.length > 0) {
+    const permissionRecords = adminData.permissions.map(key => ({
+      admin_id: admin.id,
+      permission_key: key,
+      can_access: true
+    }))
+    
+    const { error: permError } = await supabase
+      .from('admin_permissions')
+      .insert(permissionRecords)
+    
+    if (permError) {
+      // Rollback: delete the admin if permission creation fails
+      await supabase.from('admins').delete().eq('id', admin.id)
+      throw new Error(permError.message)
+    }
+  }
+  
+  return admin
+}
+
+// Update admin details
+export async function updateAdmin(adminId: string, updateData: UpdateAdminData): Promise<Admin> {
+  const supabase = createBrowserClient()
+  
+  const { data, error } = await supabase
+    .from('admins')
+    .update(updateData)
+    .eq('id', adminId)
+    .select()
+    .single()
+  
+  if (error) {
+    throw new Error(error.message)
+  }
+  
+  return data
+}
+
+// Update admin permissions
+export async function updateAdminPermissions(adminId: string, permissions: string[]): Promise<void> {
+  const supabase = createBrowserClient()
+  
+  // Delete all existing permissions
+  const { error: deleteError } = await supabase
+    .from('admin_permissions')
+    .delete()
+    .eq('admin_id', adminId)
+  
+  if (deleteError) {
+    throw new Error(deleteError.message)
+  }
+  
+  // Insert new permissions
+  if (permissions.length > 0) {
+    const permissionRecords = permissions.map(key => ({
+      admin_id: adminId,
+      permission_key: key,
+      can_access: true
+    }))
+    
+    const { error: insertError } = await supabase
+      .from('admin_permissions')
+      .insert(permissionRecords)
+    
+    if (insertError) {
+      throw new Error(insertError.message)
+    }
+  }
+}
+
+// Delete an admin (will cascade delete permissions)
+export async function deleteAdmin(adminId: string): Promise<void> {
+  const supabase = createBrowserClient()
+  
+  const { error } = await supabase
+    .from('admins')
+    .delete()
+    .eq('id', adminId)
+  
+  if (error) {
+    throw new Error(error.message)
+  }
+}
+
+// Check if username is available (for admin creation)
+export async function isAdminUsernameAvailable(username: string): Promise<boolean> {
+  const supabase = createBrowserClient()
+  
+  // Check against admins
+  const { data: adminData } = await supabase
+    .from('admins')
+    .select('id')
+    .eq('username', username)
+    .maybeSingle()
+  
+  if (adminData) {
+    return false
+  }
+  
+  // Check against owners
+  const { data: ownerData } = await supabase
+    .from('owners')
+    .select('id')
+    .eq('username', username)
+    .maybeSingle()
+  
+  return !ownerData
+}
+
+// Check if email is available (for admin creation)
+export async function isAdminEmailAvailable(email: string): Promise<boolean> {
+  const supabase = createBrowserClient()
+  
+  // Check against admins
+  const { data: adminData } = await supabase
+    .from('admins')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle()
+  
+  if (adminData) {
+    return false
+  }
+  
+  // Check against owners
+  const { data: ownerData } = await supabase
+    .from('owners')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle()
+  
+  return !ownerData
+}

@@ -1,14 +1,14 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState } from "react"
 import dynamic from "next/dynamic"
-import { Menu, MessageCircle, AlertTriangle } from "lucide-react"
+import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sidebar } from "@/components/sidebar"
 import { useMobileSidebar } from "@/hooks/use-mobile"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import type { NavigationItem } from "@/components/plaza-management-app"
 
-// Dynamically import heavy sections to avoid loading them all on first paint
+// Dynamically import all the same components as admin portal
 const Dashboard = dynamic(() => import("@/components/dashboard").then(m => m.Dashboard), {
   ssr: false,
   loading: () => <div className="p-6">Loading dashboard...</div>,
@@ -65,21 +65,22 @@ const ExpenseManagement = dynamic(() => import("@/components/expense-management"
   ssr: false,
   loading: () => <div className="p-6">Loading expenses...</div>,
 })
+const AdminManagement = dynamic(() => import("@/components/admin-management").then(m => m.AdminManagement), {
+  ssr: false,
+  loading: () => <div className="p-6">Loading admin management...</div>,
+})
 const ActivityHistory = dynamic(() => import("@/components/activity-history").then(m => m.ActivityHistory), {
   ssr: false,
   loading: () => <div className="p-6">Loading activity history...</div>,
 })
 
-// Note: Using original CustomerManagement component with added validation
-
-export type NavigationItem = {
-  id: string
-  label: string
-  subItems?: { id: string; label: string }[]
-}
-
-export const navigationItems: NavigationItem[] = [
+// Owner navigation items - includes everything plus admin management
+export const ownerNavigationItems: NavigationItem[] = [
   { id: "dashboard", label: "Dashboard" },
+  {
+    id: "admin-mgmt",
+    label: "Admin Management",
+  },
   {
     id: "customer",
     label: "Business Management",
@@ -133,8 +134,6 @@ export const navigationItems: NavigationItem[] = [
       { id: "maintenance-unpaid", label: "Unpaid Bills" },
       { id: "maintenance-paid", label: "Paid Bills" },
       { id: "maintenance-waveoff", label: "Wave off" },
-      // { id: "maintenance-advance", label: "Advances" },
-      // { id: "maintenance-instalments", label: "Partial Payments" },
     ],
   },
   {
@@ -157,7 +156,6 @@ export const navigationItems: NavigationItem[] = [
       { id: "expenses-variable", label: "Variable Expenses" },
     ],
   },
-  // { id: "terms-conditions", label: "Terms & Conditions" },
   { id: "queries", label: "Queries" },
   { id: "waveoff", label: "Wave off" },
   { id: "tc", label: "Term and Condition" },
@@ -165,125 +163,18 @@ export const navigationItems: NavigationItem[] = [
   { id: "settings", label: "Settings" },
 ]
 
-interface PlazaManagementAppProps {
-  permissions?: string[]
-}
-
-export function PlazaManagementApp({ permissions = [] }: PlazaManagementAppProps) {
+export function OwnerPortal() {
   const [activeSection, setActiveSection] = useState("dashboard")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0)
   const { isOpen: isMobileDrawerOpen, isMobile, toggleSidebar: toggleMobileDrawer } = useMobileSidebar()
 
-  // Filter navigation items based on permissions
-  const filteredNavigationItems = useMemo(() => {
-    // If no permissions provided, show all (for backward compatibility)
-    if (permissions.length === 0) {
-      return navigationItems
-    }
-
-    return navigationItems.filter(item => {
-      // Check if the item's permission key is in the permissions array
-      return permissions.includes(item.id)
-    })
-  }, [permissions])
-
-  // Check if admin has permission to view current section
-  const hasPermissionForSection = (section: string): boolean => {
-    // If no permissions provided, allow all (for backward compatibility)
-    if (permissions.length === 0) {
-      return true
-    }
-
-    // Direct permission check
-    if (permissions.includes(section)) {
-      return true
-    }
-
-    // Check parent permissions for subsections
-    // Mapping subsections to their parent permission keys
-    const subsectionToParentMap: Record<string, string> = {
-      // Customer subsections
-      'customer-add': 'customer',
-      'customer-view': 'customer',
-      'customer-floors': 'customer',
-      'customer-advance': 'customer',
-      'customer-instalments': 'customer',
-      'customer-theft': 'customer',
-      'customer-meter-load': 'customer',
-      // Rent billing subsections
-      'bill-generate': 'rent-billing',
-      'bill-all': 'rent-billing',
-      // Payment subsections
-      'payment-unpaid': 'payments',
-      'payment-paid': 'payments',
-      // Electricity subsections
-      'meter-add-reading': 'electricity',
-      'electricity-all': 'electricity',
-      'electricity-generate': 'electricity',
-      // Gas subsections
-      'gas-add-reading': 'gas',
-      'gas-all': 'gas',
-      // Maintenance subsections
-      'maintenance-bill': 'maintenance',
-      'maintenance-unpaid': 'maintenance',
-      'maintenance-paid': 'maintenance',
-      'maintenance-waveoff': 'maintenance',
-      // Reports subsections
-      'reports-rent': 'reports',
-      'reports-maintenance': 'reports',
-      'reports-gas': 'reports',
-      'reports-electricity': 'reports',
-      // Expense subsections
-      'expenses-dashboard': 'expenses',
-      'expenses-staff': 'expenses',
-      'expenses-fixed': 'expenses',
-      'expenses-variable': 'expenses',
-    }
-
-    const parentPermission = subsectionToParentMap[section]
-    if (parentPermission && permissions.includes(parentPermission)) {
-      return true
-    }
-
-    return false
-  }
-
-  // Set initial active section to first permitted section
-  useEffect(() => {
-    if (permissions.length > 0 && filteredNavigationItems.length > 0) {
-      // Check if current active section is permitted
-      if (!hasPermissionForSection(activeSection)) {
-        // Set to first permitted section
-        const firstItem = filteredNavigationItems[0]
-        if (firstItem.subItems && firstItem.subItems.length > 0) {
-          setActiveSection(firstItem.subItems[0].id)
-        } else {
-          setActiveSection(firstItem.id)
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [permissions, filteredNavigationItems, activeSection])
-
   const renderContent = () => {
-    // Check permission before rendering
-    if (!hasPermissionForSection(activeSection)) {
-      return (
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Alert variant="destructive" className="max-w-md">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              You don't have permission to access this section. Please contact the owner if you believe this is an error.
-            </AlertDescription>
-          </Alert>
-        </div>
-      )
-    }
-
     switch (activeSection) {
       case "dashboard":
         return <Dashboard />
+      case "admin-mgmt":
+        return <AdminManagement />
       case "customer-add":
       case "customer-view":
       case "customer-floors":
@@ -309,8 +200,6 @@ export function PlazaManagementApp({ permissions = [] }: PlazaManagementAppProps
       case "payment-paid":
         return <PaymentManagement activeSubSection={activeSection} />
       case "maintenance-bill":
-      // case "maintenance-advance":
-      // case "maintenance-instalments": // Now Partial Payments
       case "maintenance-unpaid":
       case "maintenance-paid":
       case "maintenance-waveoff":
@@ -347,7 +236,7 @@ export function PlazaManagementApp({ permissions = [] }: PlazaManagementAppProps
       {/* Sidebar */}
       <Sidebar
         key={sidebarRefreshKey}
-        navigationItems={filteredNavigationItems}
+        navigationItems={ownerNavigationItems}
         activeSection={activeSection}
         onSectionChange={setActiveSection}
         collapsed={sidebarCollapsed}
@@ -370,7 +259,7 @@ export function PlazaManagementApp({ permissions = [] }: PlazaManagementAppProps
               <Menu className="h-5 w-5" />
             </Button>
             <h1 className="text-lg font-semibold text-gray-900 truncate">
-              Plaza Management
+              Owner Portal
             </h1>
             <div className="w-10" /> {/* Spacer for centering */}
           </header>
