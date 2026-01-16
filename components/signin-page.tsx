@@ -105,48 +105,39 @@ export function SigninPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card>
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <Building2 className="h-12 w-12 text-blue-600" />
-            </div>
-            <CardTitle className="text-2xl font-bold">Plaza Management System</CardTitle>
-            <p className="text-gray-600">Sign in to your account</p>
-          </CardHeader>
-          
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="min-h-screen flex">
+      {/* Left Side - Login Form */}
+      <div className="w-full bg-white lg:w-1/2 flex items-center justify-center p-8">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-3xl p-8 ">
+            <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">Sign in to your account</h1>
+            <form onSubmit={handleSubmit} className="space-y-5">
               {/* Role Selection */}
-              <div>
-                <Label htmlFor="role" className="text-sm font-medium">
-                  Sign in as <span className="text-red-500">*</span>
-                </Label>
+              <div className="flex justify-center ">
                 <Select
                   value={formData.role}
                   onValueChange={(value) => handleFieldChange('role', value)}
                 >
-                  <SelectTrigger className={fieldErrors.role ? 'border-red-500' : ''}>
+                  <SelectTrigger className={`w-full h-12 bg-background border-gray-200 flex justify-center text-center rounded-4xl ${fieldErrors.role ? 'border-red-500' : ''}`}>
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="owner">
+                  <SelectContent >
+                    <SelectItem value="owner" className="text-center justify-center">
                       <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-purple-600" />
-                        Owner
+                        {/* <Shield className="h-4 w-4 text-purple-600" /> */}
+                        as Owner
                       </div>
                     </SelectItem>
-                    <SelectItem value="admin">
+                    <SelectItem value="admin" className="text-center justify-center">
                       <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4" />
-                        Admin
+                        {/* <Shield className="h-4 w-4" /> */}
+                        as Admin
                       </div>
                     </SelectItem>
-                    <SelectItem value="business">
+                    <SelectItem value="business" className="text-center justify-center">
                       <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        Business
+                        {/* <User className="h-4 w-4" /> */}
+                        as Business
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -156,19 +147,19 @@ export function SigninPage() {
                 )}
               </div>
 
-              {/* Username */}
-              <div>
-                <Label htmlFor="username" className="text-sm font-medium">
-                  Username <span className="text-red-500">*</span>
+              {/* Email/Username */}
+              <div className="relative">
+                <Label htmlFor="username" className="absolute -top-2 left-4 bg-white px-2 text-xs font-medium text-gray-700">
+                  Username
                 </Label>
-                <Input
+                <Input 
                   id="username"
                   type="text"
                   value={formData.username}
                   onChange={(e) => handleFieldChange('username', e.target.value)}
                   onBlur={(e) => handleFieldBlur('username', e.target.value)}
-                  placeholder="Enter your username"
-                  className={fieldErrors.username ? 'border-red-500' : ''}
+                  placeholder="AlexDoe"
+                  className={`rounded-4xl h-12 mt-1 ${fieldErrors.username ? 'border-red-500' : ''}`}
                   disabled={loading}
                 />
                 {fieldErrors.username && (
@@ -177,19 +168,28 @@ export function SigninPage() {
               </div>
 
               {/* Password */}
-              <div>
-                <Label htmlFor="password" className="text-sm font-medium">
-                  Password <span className="text-red-500">*</span>
-                </Label>
+              <div className="relative">
+                {/* <div className="flex items-center justify-between mb-1">
+                  
+                  <button
+                    type="button"
+                    className="text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    Forgot password?
+                  </button>
+                </div> */}
                 <div className="relative">
+                  <Label htmlFor="password" className="absolute -top-2 left-4 bg-white px-2 text-xs font-medium text-gray-700">
+                    Password
+                  </Label>
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={formData.password}
                     onChange={(e) => handleFieldChange('password', e.target.value)}
                     onBlur={(e) => handleFieldBlur('password', e.target.value)}
-                    placeholder="Enter your password"
-                    className={`pr-10 ${fieldErrors.password ? 'border-red-500' : ''}`}
+                    placeholder="••••••••"
+                    className={`rounded-4xl h-12 pr-10 placeholder:text-gray-400 ${fieldErrors.password ? 'border-red-500' : ''}`}
                     disabled={loading}
                   />
                   <button
@@ -220,24 +220,20 @@ export function SigninPage() {
               {/* Login Button */}
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full h-12 bg-black hover:bg-gray-800 text-white rounded-4xl font-medium mt-6" 
                 disabled={loading}
               >
                 {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
+          </div>
+        </div>
+      </div>
 
-            {/* Help Text */}
-            <div className="mt-6 text-center text-sm text-gray-600">
-              <div className="space-y-2">
-                <p><strong>Owner:</strong> Full system access with admin management</p>
-                <p><strong>Admin:</strong> Access based on assigned permissions</p>
-                <p><strong>Business:</strong> Business portal access</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Right Side - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-8 bg-[url('/sigin_in_bg.png')] bg-no-repeat bg-center bg-cover min-h-screen">
+        <img src="/Logo_signin.svg" alt="buildsync logo" className="max-w-xs" />
       </div>
     </div>
   )

@@ -31,7 +31,7 @@
   --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.625rem;
   /* Sidebar lighter gray in light mode to differentiate */
-  --sidebar: oklch(0 0 0);
+  --sidebar: oklch(0.96 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -79,8 +79,8 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-abc-ginto);
+  --font-mono: var(--font-abc-ginto);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -122,6 +122,11 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* Disable ALL OpenType features that might convert numbers to special glyphs */
+    font-feature-settings: normal;
+    font-variant: normal;
+    font-variant-numeric: normal;
+    font-variant-ligatures: none;
   }
   body {
     @apply bg-background text-foreground;
@@ -194,10 +199,29 @@
       @apply text-lg;
     }
   }
+  
+  /* Force disable font features for tabs to prevent (8) becoming ⑧ */
+  [data-slot="tabs-trigger"],
+  button[role="tab"] {
+    font-feature-settings: normal !important;
+    font-variant: normal !important;
+    font-variant-numeric: normal !important;
+    font-variant-ligatures: none !important;
+  }
 }
 
 /* Mobile-specific utility classes */
 @layer utilities {
+  /* Hide scrollbar while keeping scroll functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+  
   /* Mobile spacing utilities */
   .mobile-p {
     @apply p-4;

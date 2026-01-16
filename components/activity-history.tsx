@@ -119,7 +119,7 @@ export function ActivityHistory() {
     if (!amount) return null
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'PKR'
     }).format(amount)
   }
 
@@ -128,13 +128,9 @@ export function ActivityHistory() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <History className="h-8 w-8" />
+          <h1 className="text-xl font-bold flex items-center gap-2">
             Activity History
           </h1>
-          <p className="text-gray-600 mt-1">
-            Complete audit trail of all actions performed in the system
-          </p>
         </div>
       </div>
 
@@ -150,7 +146,7 @@ export function ActivityHistory() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Date Range */}
             <div>
-              <Label htmlFor="startDate">Start Date</Label>
+              <Label htmlFor="startDate" className="py-2">Start Date</Label>
               <Input
                 id="startDate"
                 type="date"
@@ -160,7 +156,7 @@ export function ActivityHistory() {
             </div>
             
             <div>
-              <Label htmlFor="endDate">End Date</Label>
+              <Label htmlFor="endDate" className="py-2">End Date</Label>
               <Input
                 id="endDate"
                 type="date"
@@ -171,7 +167,7 @@ export function ActivityHistory() {
 
             {/* Action Type */}
             <div>
-              <Label htmlFor="actionType">Action Type</Label>
+              <Label htmlFor="actionType" className="py-2">Action Type</Label>
               <Select
                 value={filters.actionType || 'all'}
                 onValueChange={(value) => handleFilterChange('actionType', value === 'all' ? undefined : value)}
@@ -192,7 +188,7 @@ export function ActivityHistory() {
 
             {/* Username */}
             <div>
-              <Label htmlFor="username">User</Label>
+              <Label htmlFor="username" className="py-2">User</Label>
               <Select
                 value={filters.username || 'all'}
                 onValueChange={(value) => handleFilterChange('username', value === 'all' ? undefined : value)}
@@ -213,7 +209,7 @@ export function ActivityHistory() {
 
             {/* Entity Name Search */}
             <div>
-              <Label htmlFor="entityName">Business/Entity Name</Label>
+              <Label htmlFor="entityName" className="py-2">Business/Entity Name</Label>
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
                 <Input
@@ -228,7 +224,7 @@ export function ActivityHistory() {
 
             {/* User Type */}
             <div>
-              <Label htmlFor="userType">User Type</Label>
+              <Label htmlFor="userType" className="py-2">User Type</Label>
               <Select
                 value={filters.userType || 'all'}
                 onValueChange={(value) => handleFilterChange('userType', value === 'all' ? undefined : value)}
@@ -395,7 +391,7 @@ export function ActivityHistory() {
                   <p className="font-medium">{selectedLog.entity_type || 'N/A'}</p>
                 </div>
                 <div>
-                  <Label className="text-gray-600">Entity Name</Label>
+                  <Label className="text-gray-600">Admin Name</Label>
                   <p className="font-medium">{selectedLog.entity_name || 'N/A'}</p>
                 </div>
                 {selectedLog.amount && (
@@ -420,18 +416,22 @@ export function ActivityHistory() {
 
               {selectedLog.old_value && (
                 <div>
-                  <Label className="text-gray-600">Old Value</Label>
+                  <Label className="text-gray-600">Old Status</Label>
                   <pre className="mt-1 p-3 bg-gray-50 rounded text-xs overflow-x-auto">
-                    {JSON.stringify(selectedLog.old_value, null, 2)}
+                   {Object.entries(selectedLog.old_value)
+                  .map(([key, value]) => `${JSON.stringify(value, null,2)}`)
+                  .join('\n')}
                   </pre>
                 </div>
               )}
 
               {selectedLog.new_value && (
                 <div>
-                  <Label className="text-gray-600">New Value</Label>
+                  <Label className="text-gray-600">New Status</Label>
                   <pre className="mt-1 p-3 bg-gray-50 rounded text-xs overflow-x-auto">
-                    {JSON.stringify(selectedLog.new_value, null, 2)}
+                   {Object.entries(selectedLog.new_value)
+                  .map(([key, value]) => `${JSON.stringify(value, null, 2)}`)
+                  .join('\n')}
                   </pre>
                 </div>
               )}

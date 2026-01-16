@@ -1,8 +1,13 @@
 import type { Metadata } from 'next'
-import { GeistSans } from 'geist/font/sans'
-import { GeistMono } from 'geist/font/mono'
+import localFont from 'next/font/local'
 import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
+
+const abcGinto = localFont({
+  src: '../public/fonts/ABC Ginto Normal Variable Unlicensed Trial.ttf',
+  variable: '--font-abc-ginto',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'Darbaal Plaza',
@@ -34,12 +39,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={GeistSans.variable} suppressHydrationWarning>
+    <html lang="en" className={abcGinto.variable} suppressHydrationWarning>
       <head>
-        {/* Preconnect to improve loading performance */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        
         {/* DNS prefetch for external resources */}
         <link rel="dns-prefetch" href="https://supabase.co" />
         
@@ -47,7 +48,7 @@ export default function RootLayout({
         
         {/* Critical CSS - moved to globals.css for better performance */}
       </head>
-      <body className={`font-sans antialiased ${GeistSans.variable} ${GeistMono.variable}`}>
+      <body className={`font-sans antialiased ${abcGinto.variable}`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="light"

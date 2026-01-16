@@ -2032,15 +2032,16 @@ export async function approvePendingPayment(pendingPaymentId: string, adminName:
     throw new Error('Pending payment not found')
   }
   
-  // No need to create separate payment records - just update the pending payment status
-  // The pending_payments table already contains all the payment information we need
+  // Create payment records so they show in business dashboard
+  let createdPaymentId: string | null = null
   
   // Update the pending payment status
   const updateData = {
     status: 'approved',
     reviewed_by: adminName,
     reviewed_at: new Date().toISOString(),
-    review_notes: reviewNotes
+    review_notes: reviewNotes,
+    payment_id: null as string | null
   }
   
   const { data: updatedPendingPayment, error: updateError } = await supabase
@@ -2060,7 +2061,11 @@ export async function approvePendingPayment(pendingPaymentId: string, adminName:
     // This is a meter reading payment - update meter_readings table
     const { error: meterUpdateError } = await supabase
       .from('meter_readings')
-      .update({ payment_status: 'paid' })
+      .update({ 
+        payment_status: 'paid',
+        marked_paid_by: adminName,
+        marked_paid_date: new Date().toISOString()
+      })
       .eq('id', pendingPayment.bill_id)
     
     if (meterUpdateError) {
@@ -2071,7 +2076,31 @@ export async function approvePendingPayment(pendingPaymentId: string, adminName:
     const isMaintenanceBill = pendingPayment.notes?.includes('maintenance bill')
     
     if (isMaintenanceBill) {
-      // This is a maintenance bill - update maintenance_bills table
+      // Create maintenance payment record for business dashboard
+      const maintenancePaymentData = {
+        business_id: pendingPayment.business_id,
+        maintenance_bill_id: pendingPayment.bill_id,
+        payment_date: pendingPayment.payment_date,
+        amount: pendingPayment.amount,
+        payment_method: pendingPayment.payment_method,
+        notes: `Approved by ${adminName}. Original submission: ${pendingPayment.notes || ''}`,
+        marked_paid_by: adminName,
+        marked_paid_date: new Date().toISOString()
+      }
+      
+      const { data: createdMaintenancePayment, error: maintenancePaymentError } = await supabase
+        .from('maintenance_payments')
+        .insert([maintenancePaymentData])
+        .select()
+        .single()
+      
+      if (maintenancePaymentError) {
+        throw new Error(maintenancePaymentError.message)
+      }
+      
+      createdPaymentId = createdMaintenancePayment?.id || null
+      
+      // Update maintenance bill status
       const { error: maintenanceBillUpdateError } = await supabase
         .from('maintenance_bills')
         .update({ status: 'paid' })
@@ -2081,7 +2110,31 @@ export async function approvePendingPayment(pendingPaymentId: string, adminName:
         throw new Error(maintenanceBillUpdateError.message)
       }
     } else {
-      // This is a regular bill - update bills table
+      // Create regular payment record for business dashboard
+      const paymentData = {
+        business_id: pendingPayment.business_id,
+        bill_id: pendingPayment.bill_id,
+        payment_date: pendingPayment.payment_date,
+        amount: pendingPayment.amount,
+        payment_method: pendingPayment.payment_method,
+        notes: `Approved by ${adminName}. Original submission: ${pendingPayment.notes || ''}`,
+        marked_paid_by: adminName,
+        marked_paid_date: new Date().toISOString()
+      }
+      
+      const { data: createdPayment, error: paymentError } = await supabase
+        .from('payments')
+        .insert([paymentData])
+        .select()
+        .single()
+      
+      if (paymentError) {
+        throw new Error(paymentError.message)
+      }
+      
+      createdPaymentId = createdPayment?.id || null
+      
+      // Update regular bill status
       const { error: billUpdateError } = await supabase
         .from('bills')
         .update({ status: 'paid' })
@@ -2091,6 +2144,15 @@ export async function approvePendingPayment(pendingPaymentId: string, adminName:
         throw new Error(billUpdateError.message)
       }
     }
+  }
+  
+  // Update pending payment with the created payment ID
+  if (createdPaymentId) {
+    updateData.payment_id = createdPaymentId
+    await supabase
+      .from('pending_payments')
+      .update({ payment_id: createdPaymentId })
+      .eq('id', pendingPaymentId)
   }
   
   return { payment: null, updatedPendingPayment }

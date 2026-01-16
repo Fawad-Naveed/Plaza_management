@@ -334,7 +334,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
 
   const renderReadingSheet = () => (
     <div className="space-y-6">
-      <Card className="border-0 shadow-sm">
+      <Card className="border-0 shadow-sm rounded-4xl">
         <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-0">
           <CardTitle className="text-xl font-bold flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -568,7 +568,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
     
     return (
       <div className="space-y-6">
-        <Card className="border-0 shadow-sm">
+        <Card className="border-0 shadow-sm rounded-4xl">
           <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-b border-0 dark:border-gray-800">
             <CardTitle className="text-xl font-bold flex items-center gap-3">
               <div className="p-2 bg-green-500 rounded-lg">
@@ -716,7 +716,7 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
         </CardContent>
       </Card>
 
-      <Card className="border-0">
+      <Card className="border-0 rounded-4xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Recent Readings</CardTitle>
         </CardHeader>
@@ -813,7 +813,12 @@ export function MeterReading({ activeSubSection }: MeterReadingProps) {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-black">{getSectionTitle()}</h1>
+      <div>
+        <h1 className="text-xl font-medium tracking-tight">{getSectionTitle()}</h1>
+        <p className=" text-md text-muted-foreground">
+          Manage electricity meter readings and consumption tracking
+        </p>
+      </div>
       {renderContent()}
 
       {/* Monthly Details Dialog */}

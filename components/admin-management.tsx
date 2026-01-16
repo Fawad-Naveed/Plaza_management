@@ -99,6 +99,8 @@ interface AdminFormData {
 }
 
 export function AdminManagement() {
+  const [isMobile, setIsMobile] = useState(false)
+  const [isTablet, setIsTablet] = useState(false)
   const [admins, setAdmins] = useState<AdminWithPermissions[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddDialog, setShowAddDialog] = useState(false)
@@ -119,6 +121,16 @@ export function AdminManagement() {
 
   useEffect(() => {
     loadAdmins()
+  }, [])
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640)
+      setIsTablet(window.innerWidth >= 640 && window.innerWidth < 1024)
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   const loadAdmins = async () => {
@@ -459,19 +471,23 @@ export function AdminManagement() {
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Admin Management</CardTitle>
-            <p className="text-sm text-gray-600 mt-1">
-              Create and manage admin users with specific permissions
-            </p>
-          </div>
-          <Button onClick={() => { resetForm(); setShowAddDialog(true); }}>
+    <div className="space-y-6 ">
+      <div className=" flex flex-row items-center justify-between">
+        <div>
+          <h1 className={`font-medium tracking-tight ${
+            isMobile ? 'text-xl' : isTablet ? 'text-xl' : 'text-xl'
+          }`}>Admin Management</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Create and manage admin users with specific permissions
+          </p>
+        </div>
+        <Button onClick={() => { resetForm(); setShowAddDialog(true); }}>
             <UserPlus className="h-4 w-4 mr-2" />
             Add Admin
           </Button>
+      </div>
+      <Card className="rounded-4xl">
+        <CardHeader className="flex flex-row items-center justify-between">
         </CardHeader>
         <CardContent>
           {error && (

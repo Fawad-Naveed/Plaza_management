@@ -527,7 +527,7 @@ export function ReportsModule({ activeSubSection }: ReportsModuleProps) {
   )
 
   const renderDownloadSection = () => (
-    <Card className="border-0">
+    <Card className="border-0 rounded-4xl">
       <CardHeader>
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           {getReportIcon()}
@@ -617,7 +617,7 @@ export function ReportsModule({ activeSubSection }: ReportsModuleProps) {
     
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card className="border-0">
+        <Card className="border-0 rounded-4xl">
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-blue-500" />
@@ -629,7 +629,7 @@ export function ReportsModule({ activeSubSection }: ReportsModuleProps) {
           </CardContent>
         </Card>
         
-        <Card className="border-0">
+        <Card className="border-0 rounded-4xl">
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-green-500" />
@@ -641,7 +641,7 @@ export function ReportsModule({ activeSubSection }: ReportsModuleProps) {
           </CardContent>
         </Card>
         
-        <Card className="border-0">
+        <Card className="border-0 rounded-4xl">
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-purple-500" />
@@ -661,8 +661,8 @@ export function ReportsModule({ activeSubSection }: ReportsModuleProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        {getReportIcon()}
-        <h1 className="text-2xl font-bold text-black">{getReportTitle()}</h1>
+        {/* {getReportIcon()} */}
+        <h1 className="text-xl font-medium text-black">{getReportTitle()}</h1>
       </div>
       
       {renderFilters()}

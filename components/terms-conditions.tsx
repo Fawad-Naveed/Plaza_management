@@ -179,7 +179,7 @@ export function TermsConditions() {
 
       <div className="space-y-4">
         {terms.map((term) => (
-          <Card key={term.id} className="border-0">
+          <Card key={term.id} className="border-0 rounded-4xl">
             <CardHeader>
               <CardTitle className="text-lg font-semibold flex items-center justify-between">
                 {term.title}
@@ -214,7 +214,7 @@ export function TermsConditions() {
       </div>
 
       {terms.length === 0 && !loading && (
-        <Card className="border-0">
+        <Card className="border-0 rounded-4xl">
           <CardContent className="p-12 text-center">
             <p className="text-gray-500 mb-4">No terms and conditions added yet.</p>
             <Button onClick={() => setShowAddDialog(true)} className="bg-black text-white hover:bg-gray-800">

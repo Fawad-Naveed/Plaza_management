@@ -148,12 +148,12 @@ export default function StaffListPage() {
     .reduce((sum, s) => sum + s.salary_amount, 0)
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Staff Management</h1>
-          <p className="text-muted-foreground mt-1">Manage plaza staff members</p>
+          <h1 className="text-xl font-medium">Staff Management</h1>
+          <p className="text-md text-muted-foreground mt-1">Manage plaza staff members</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={handleGenerateSalaries} variant="outline" disabled={generatingSalaries}>
@@ -186,7 +186,7 @@ export default function StaffListPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card>
+        <Card className="rounded-4xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Staff</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -197,7 +197,7 @@ export default function StaffListPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-4xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Salaries</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -208,7 +208,7 @@ export default function StaffListPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-4xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">By Category</CardTitle>
           </CardHeader>
@@ -238,7 +238,7 @@ export default function StaffListPage() {
       </div>
 
       {/* Filters */}
-      <Card className="mb-6">
+      <Card className="mb-6 rounded-4xl">
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
@@ -280,7 +280,7 @@ export default function StaffListPage() {
       </Card>
 
       {/* Staff List */}
-      <Card>
+      <Card className="rounded-4xl">
         <CardContent className="pt-6">
           {loading ? (
             <div className="flex justify-center items-center py-8">

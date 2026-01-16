@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import dynamic from "next/dynamic"
-import { Menu, MessageCircle, AlertTriangle } from "lucide-react"
+import { Menu, MessageCircle, AlertTriangle, LayoutDashboard, UserCog, Building2, Home, CreditCard, Zap, Flame, Wrench, FileText, Wallet, HelpCircle, FileX, FileCheck, History, Settings as SettingsIcon, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sidebar } from "@/components/sidebar"
 import { useMobileSidebar } from "@/hooks/use-mobile"
@@ -75,14 +75,16 @@ const ActivityHistory = dynamic(() => import("@/components/activity-history").th
 export type NavigationItem = {
   id: string
   label: string
+  icon?: string
   subItems?: { id: string; label: string }[]
 }
 
 export const navigationItems: NavigationItem[] = [
-  { id: "dashboard", label: "Dashboard" },
+  { id: "dashboard", label: "Dashboard", icon: "LayoutDashboard" },
   {
     id: "customer",
-    label: "Business Management",
+    label: "Business",
+    icon: "Building2",
     subItems: [
       { id: "customer-add", label: "Add Business" },
       { id: "customer-view", label: "View Businesses" },
@@ -95,7 +97,8 @@ export const navigationItems: NavigationItem[] = [
   },
   {
     id: "rent-billing",
-    label: "Rent Management",
+    label: "Rent",
+    icon: "Home",
     subItems: [
       { id: "bill-generate", label: "Generate Bills" },
       { id: "bill-all", label: "All Bills" },
@@ -103,7 +106,8 @@ export const navigationItems: NavigationItem[] = [
   },
   {
     id: "payments",
-    label: "Payment Management",
+    label: "Payment",
+    icon: "CreditCard",
     subItems: [
       { id: "payment-unpaid", label: "Pending Payments" },
       { id: "payment-paid", label: "Payment History" },
@@ -111,7 +115,8 @@ export const navigationItems: NavigationItem[] = [
   },
   {
     id: "electricity",
-    label: "Electricity Management",
+    label: "Electricity",
+    icon: "Zap",
     subItems: [
       { id: "meter-add-reading", label: "Meter Reading" },
       { id: "electricity-all", label: "All Bills" },
@@ -119,7 +124,8 @@ export const navigationItems: NavigationItem[] = [
   },
   {
     id: "gas",
-    label: "Gas Management",
+    label: "Gas",
+    icon: "Flame",
     subItems: [
       { id: "gas-add-reading", label: "Meter Reading" },
       { id: "gas-all", label: "All Bills" },
@@ -127,7 +133,8 @@ export const navigationItems: NavigationItem[] = [
   },
   {
     id: "maintenance",
-    label: "Maintenance Management",
+    label: "Maintenance",
+    icon: "Wrench",
     subItems: [
       { id: "maintenance-bill", label: "Generate Bills" },
       { id: "maintenance-unpaid", label: "Unpaid Bills" },
@@ -140,6 +147,7 @@ export const navigationItems: NavigationItem[] = [
   {
     id: "reports",
     label: "Reports",
+    icon: "FileText",
     subItems: [
       { id: "reports-rent", label: "Rent History" },
       { id: "reports-maintenance", label: "Maintenance History" },
@@ -150,6 +158,7 @@ export const navigationItems: NavigationItem[] = [
   {
     id: "expenses",
     label: "Expense Tracking",
+    icon: "Wallet",
     subItems: [
       { id: "expenses-dashboard", label: "Dashboard" },
       { id: "expenses-staff", label: "Staff Management" },
@@ -158,11 +167,11 @@ export const navigationItems: NavigationItem[] = [
     ],
   },
   // { id: "terms-conditions", label: "Terms & Conditions" },
-  { id: "queries", label: "Queries" },
-  { id: "waveoff", label: "Wave off" },
-  { id: "tc", label: "Term and Condition" },
-  { id: "activity-history", label: "Activity History" },
-  { id: "settings", label: "Settings" },
+  { id: "queries", label: "Queries", icon: "HelpCircle" },
+  { id: "waveoff", label: "Wave off", icon: "FileX" },
+  { id: "tc", label: "Term and Condition", icon: "FileCheck" },
+  { id: "activity-history", label: "Activity History", icon: "History" },
+  { id: "settings", label: "Settings", icon: "Settings" },
 ]
 
 interface PlazaManagementAppProps {
@@ -383,11 +392,11 @@ export function PlazaManagementApp({ permissions = [] }: PlazaManagementAppProps
             isMobile 
               ? "" // No margin on mobile, content takes full width
               : sidebarCollapsed 
-                ? "ml-16" 
-                : "ml-64"
+                ? "ml-20" 
+                : "ml-72"
           }
         `}>
-          <div className={isMobile ? "mobile-p" : "p-6"}>
+          <div className={isMobile ? "mobile-p" : "p-4"}>
             {renderContent()}
           </div>
         </main>

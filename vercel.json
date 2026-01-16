@@ -1,0 +1,9 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/generate-rent-bills",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}
+

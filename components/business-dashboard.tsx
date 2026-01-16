@@ -23,6 +23,7 @@ import {
 import { getAuthState, logout } from "@/lib/auth"
 import { clientDb, createPendingPayment, getPendingPaymentsByBusiness } from "@/lib/database"
 import type { Business, Bill, Payment, MaintenanceBill, MaintenancePayment, MeterReading, PendingPayment } from "@/lib/database"
+import { logActivity, ACTION_TYPES } from "@/lib/activity-logger"
 
 export function BusinessDashboard() {
   const [business, setBusiness] = useState<Business | null>(null)
@@ -92,6 +93,17 @@ export function BusinessDashboard() {
         
         await createPendingPayment(pendingPaymentData)
         
+        // Log activity for payment submission
+        await logActivity({
+          action_type: ACTION_TYPES.PAYMENT_SUBMITTED,
+          entity_type: 'payment',
+          entity_id: billId,
+          entity_name: authState.businessName || 'Unknown',
+          description: `Submitted ${billType} payment of PKR ${amount.toFixed(2)} for approval`,
+          amount: amount,
+          notes: `Bill ID: ${billId}, Payment Method: cash`
+        })
+        
         alert(`${billType.charAt(0).toUpperCase() + billType.slice(1)} bill payment submitted for admin approval! Please wait for approval.`)
         
         // Reload data to reflect any changes
@@ -111,6 +123,17 @@ export function BusinessDashboard() {
       }
       
       await createPendingPayment(pendingPaymentData)
+      
+      // Log activity for payment submission
+      await logActivity({
+        action_type: ACTION_TYPES.PAYMENT_SUBMITTED,
+        entity_type: 'payment',
+        entity_id: billId,
+        entity_name: authState.businessName || 'Unknown',
+        description: `Submitted ${billType} payment of PKR ${amount.toFixed(2)} for approval`,
+        amount: amount,
+        notes: `Bill ID: ${billId}, Payment Method: cash`
+      })
       
       alert('Payment submitted for admin approval! Please wait for approval.')
       
@@ -284,11 +307,10 @@ export function BusinessDashboard() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card shadow-sm border-b border-border">
+      <header className="">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center gap-3">
-              <Building2 className="h-8 w-8 text-blue-600" />
               <div>
                 <h1 className="text-xl font-bold text-foreground">{business.name}</h1>
                 <p className="text-sm text-muted-foreground">Business Dashboard</p>
@@ -306,7 +328,7 @@ export function BusinessDashboard() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-5 py-8">
         <div className="space-y-6">
           {/* Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -654,39 +676,79 @@ export function BusinessDashboard() {
             </CardHeader>
             <CardContent>
               {(() => {
-                // Create unified list of all payments sorted by date
-                const allPayments = [
+                // Create unified list of all payments sorted by date with proper typing
+                const allPayments: Array<{
+                  id: string
+                  type: 'regular' | 'maintenance' | 'electricity' | 'gas'
+                  date: Date
+                  displayTitle: string
+                  bgColor: string
+                  textColor: string
+                  amount: number
+                  payment_date?: string
+                  reading_date?: string
+                  bill_number?: string
+                  units_consumed?: number
+                  marked_paid_by?: string
+                  marked_paid_date?: string
+                  reference_number?: string
+                  payment_method?: string
+                }> = [
                   ...payments.map(p => ({ 
-                    ...p, 
-                    type: 'regular', 
+                    id: p.id,
+                    type: 'regular' as const,
                     date: new Date(p.payment_date),
                     displayTitle: `Rent Payment - ${p.payment_method.toUpperCase()}`,
                     bgColor: 'bg-green-500/10 hover:bg-green-500/20 dark:bg-green-500/20 dark:hover:bg-green-500/30',
-                    textColor: 'text-green-600 dark:text-green-400'
+                    textColor: 'text-green-600 dark:text-green-400',
+                    amount: p.amount,
+                    payment_date: p.payment_date,
+                    marked_paid_by: p.marked_paid_by,
+                    marked_paid_date: p.marked_paid_date,
+                    reference_number: p.reference_number,
+                    payment_method: p.payment_method
                   })),
                   ...maintenancePayments.map(p => ({ 
-                    ...p, 
-                    type: 'maintenance', 
+                    id: p.id,
+                    type: 'maintenance' as const,
                     date: new Date(p.payment_date),
                     displayTitle: `Maintenance Payment - ${p.payment_method.toUpperCase()}`,
                     bgColor: 'bg-blue-500/10 hover:bg-blue-500/20 dark:bg-blue-500/20 dark:hover:bg-blue-500/30',
-                    textColor: 'text-blue-600 dark:text-blue-400'
+                    textColor: 'text-blue-600 dark:text-blue-400',
+                    amount: p.amount,
+                    payment_date: p.payment_date,
+                    marked_paid_by: p.marked_paid_by,
+                    marked_paid_date: p.marked_paid_date,
+                    reference_number: p.reference_number,
+                    payment_method: p.payment_method
                   })),
                   ...paidElectricityBills.map(r => ({ 
-                    ...r, 
-                    type: 'electricity', 
+                    id: r.id,
+                    type: 'electricity' as const,
                     date: new Date(r.marked_paid_date || r.reading_date),
                     displayTitle: 'Electricity Payment',
                     bgColor: 'bg-yellow-500/10 hover:bg-yellow-500/20 dark:bg-yellow-500/20 dark:hover:bg-yellow-500/30',
-                    textColor: 'text-yellow-600 dark:text-yellow-400'
+                    textColor: 'text-yellow-600 dark:text-yellow-400',
+                    amount: r.amount,
+                    reading_date: r.reading_date,
+                    bill_number: r.bill_number,
+                    units_consumed: r.units_consumed,
+                    marked_paid_by: r.marked_paid_by,
+                    marked_paid_date: r.marked_paid_date
                   })),
                   ...paidGasBills.map(r => ({ 
-                    ...r, 
-                    type: 'gas', 
+                    id: r.id,
+                    type: 'gas' as const,
                     date: new Date(r.marked_paid_date || r.reading_date),
                     displayTitle: 'Gas Payment',
                     bgColor: 'bg-purple-500/10 hover:bg-purple-500/20 dark:bg-purple-500/20 dark:hover:bg-purple-500/30',
-                    textColor: 'text-purple-600 dark:text-purple-400'
+                    textColor: 'text-purple-600 dark:text-purple-400',
+                    amount: r.amount,
+                    reading_date: r.reading_date,
+                    bill_number: r.bill_number,
+                    units_consumed: r.units_consumed,
+                    marked_paid_by: r.marked_paid_by,
+                    marked_paid_date: r.marked_paid_date
                   }))
                 ].sort((a, b) => b.date.getTime() - a.date.getTime())
                 

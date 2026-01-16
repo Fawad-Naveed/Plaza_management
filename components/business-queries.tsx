@@ -31,6 +31,7 @@ import {
 } from "lucide-react"
 import { getAuthState } from "@/lib/auth"
 import { clientDb, type Query, type Business } from "@/lib/database"
+import { logActivity, ACTION_TYPES } from "@/lib/activity-logger"
 
 export function BusinessQueries() {
   const [queries, setQueries] = useState<Query[]>([])
@@ -135,6 +136,16 @@ export function BusinessQueries() {
       }
 
       if (result.data) {
+        // Log activity for query submission
+        await logActivity({
+          action_type: ACTION_TYPES.QUERY_SUBMITTED,
+          entity_type: 'query',
+          entity_id: result.data.id,
+          entity_name: business?.name || 'Unknown',
+          description: `Submitted query: ${newQuery.title} (${newQuery.category})`,
+          notes: `Priority: ${newQuery.priority}, Description: ${newQuery.description.substring(0, 100)}${newQuery.description.length > 100 ? '...' : ''}`
+        })
+        
         // Add new query to the top of the list
         setQueries(prev => [result.data!, ...prev])
         
@@ -272,7 +283,7 @@ export function BusinessQueries() {
   const counts = getStatusCounts()
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-5">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-card rounded-xl shadow-sm border border-border p-4 md:p-6">
@@ -525,7 +536,7 @@ export function BusinessQueries() {
                               </TableCell>
                               <TableCell>
                                 <div className="text-sm">
-                                  <p>{formatDate(query.createdAt)}</p>
+                                  <p>{formatDate(query.created_at)}</p>
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -571,7 +582,7 @@ export function BusinessQueries() {
                                         </div>
                                         <div>
                                           <p className="text-sm text-muted-foreground">Submitted</p>
-                                          <p className="font-medium text-foreground">{formatDate(query.createdAt)}</p>
+                                          <p className="font-medium text-foreground">{formatDate(query.created_at)}</p>
                                         </div>
                                       </div>
 
@@ -623,7 +634,7 @@ export function BusinessQueries() {
                               <div className="flex items-center justify-between pt-2 border-t">
                                 <div className="text-xs text-muted-foreground">
                                   <Calendar className="h-3 w-3 inline mr-1" />
-                                  {new Date(query.createdAt).toLocaleDateString()}
+                                  {new Date(query.created_at).toLocaleDateString()}
                                 </div>
                                 <Dialog>
                                   <DialogTrigger asChild>
@@ -668,7 +679,7 @@ export function BusinessQueries() {
                                         </div>
                                         <div>
                                           <p className="text-sm text-muted-foreground">Submitted</p>
-                                          <p className="font-medium text-foreground text-sm">{formatDate(query.createdAt)}</p>
+                                          <p className="font-medium text-foreground text-sm">{formatDate(query.created_at)}</p>
                                         </div>
                                       </div>
 

@@ -60,11 +60,11 @@ export default function ExpenseDashboardPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 space-y-6">
+    <div className="container mx-auto py-8 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Expense Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Overview of fixed and variable expenses</p>
+          <h1 className="text-xl font-medium">Expense Dashboard</h1>
+          <p className="text-md text-muted-foreground mt-1">Overview of fixed and variable expenses</p>
         </div>
         <div className="flex gap-2">
           <Link href="/expenses/variable">
@@ -84,8 +84,8 @@ export default function ExpenseDashboardPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card className="rounded-4xl">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 ">
             <CardTitle className="text-sm font-medium">Total Expenses (This Month)</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -94,7 +94,7 @@ export default function ExpenseDashboardPage() {
             <p className="text-xs text-muted-foreground">Fixed + Variable</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-4xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Fixed Expenses</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -104,7 +104,7 @@ export default function ExpenseDashboardPage() {
             <p className="text-xs text-muted-foreground">Salaries + Utilities</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-4xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Variable Expenses</CardTitle>
             <Receipt className="h-4 w-4 text-muted-foreground" />
@@ -114,7 +114,7 @@ export default function ExpenseDashboardPage() {
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-4xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Staff</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -127,7 +127,7 @@ export default function ExpenseDashboardPage() {
       </div>
 
       {/* Breakdown */}
-      <Card>
+      <Card className="rounded-4xl">
         <CardHeader>
           <CardTitle>Breakdown (This Month)</CardTitle>
         </CardHeader>

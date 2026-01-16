@@ -133,7 +133,7 @@ export function TCComponent() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-black">T&C</h1>
+        <h1 className="text-xl font-medium text-black">Terms & Conditions</h1>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
             <Button className="bg-black text-white hover:bg-gray-800">
@@ -189,7 +189,7 @@ export function TCComponent() {
 
       <div className="space-y-4">
         {tcs.map((tc) => (
-          <Card key={tc.id} className="border-0">
+          <Card key={tc.id} className="border-0 rounded-4xl">
             <CardHeader>
               <CardTitle className="text-lg font-semibold flex items-center justify-between">
                 {tc.title}
@@ -227,7 +227,7 @@ export function TCComponent() {
       </div>
 
       {tcs.length === 0 && !loading && (
-        <Card className="border-0">
+        <Card className="border-0 rounded-4xl">
           <CardContent className="p-12 text-center">
             <p className="text-gray-500 mb-4">No T&C added yet.</p>
             <Button onClick={() => setShowAddDialog(true)} className="bg-black text-white hover:bg-gray-800">

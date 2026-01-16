@@ -121,12 +121,12 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Settings</h1>
+        <h1 className="text-xl font-medium">Settings</h1>
       </div>
 
       {/* Dark Mode Toggle */}
-      <Card className="border-border bg-card">
-        <CardContent className="pt-6">
+      <Card className=" border-border bg-card rounded-4xl">
+        <CardContent >
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <Label className="text-base font-semibold">Theme</Label>
@@ -173,7 +173,7 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Business Information */}
-        <Card className="border-0">
+        <Card className="border-0 rounded-4xl">
           <CardHeader>
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <Building className="h-5 w-5" />
@@ -247,7 +247,7 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
         </Card>
 
         {/* Contact Information */}
-        <Card className="border-0">
+        <Card className="border-0 rounded-4xl">
           <CardHeader>
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <Mail className="h-5 w-5" />
@@ -357,7 +357,7 @@ export function Settings({ onSettingsSaved }: SettingsProps) {
 
       {/* Preview Section */}
       {formData.business_name && (
-        <Card className="border-0">
+        <Card className="border-0 rounded-4xl">
           <CardHeader>
             <CardTitle className="text-lg font-semibold">Sidebar Preview</CardTitle>
           </CardHeader>

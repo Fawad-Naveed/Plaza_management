@@ -127,10 +127,28 @@ export function Dashboard() {
     }
   })()
 
+  // Helper function to abbreviate floor names for mobile
+  const abbreviateFloorName = (floorName: string): string => {
+    // Split the floor name into words
+    const words = floorName.trim().split(/\s+/)
+    
+    if (words.length >= 2) {
+      // Take first letter of first word + first letter of second word
+      return (words[0][0] + words[1][0]).toUpperCase()
+    } else if (words.length === 1 && words[0].length >= 2) {
+      // If single word, take first two letters
+      return words[0].substring(0, 2).toUpperCase()
+    } else {
+      // Fallback for very short single words
+      return words[0].toUpperCase()
+    }
+  }
+
   const floorData = floors.map((floor) => {
     const floorBusinesses = businesses.filter((b) => b.floor_number === floor.floor_number)
     return {
       floor: floor.floor_name,
+      floorAbbr: abbreviateFloorName(floor.floor_name),
       occupied: floorBusinesses.length,
       electricityUsers: floorBusinesses.length, // Assuming all businesses use electricity
       total: floor.total_shops,
@@ -197,16 +215,16 @@ export function Dashboard() {
   }
 
   return (
-    <div className={`min-h-screen bg-background ${isMobile ? 'p-4' : 'p-6'}`}>
+    <div className={`min-h-screen bg-background ${isMobile ? 'p-4' : 'py-4'}`}>
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className={`font-bold tracking-tight ${
-              isMobile ? 'text-2xl' : isTablet ? 'text-3xl' : 'text-4xl'
+            <h1 className={`font-medium tracking-tight ${
+              isMobile ? 'text-xl' : isTablet ? 'text-xl' : 'text-xl'
             }`}>Dashboard</h1>
-            <p className={`text-muted-foreground mt-2 ${
-              isMobile ? 'text-sm' : 'text-lg'
-            }`}>Plaza Management Overview</p>
+            {/* <p className={`text-muted-foreground mt-2 ${
+              isMobile ? 'text-sm' : 'text-sm'
+            }`}>Plaza Management Overview</p> */}
           </div>
         </div>
 
@@ -214,7 +232,7 @@ export function Dashboard() {
       <RevenueInsights />
 
         {/* Floor Details Section */}
-        <Card className={`bg-card shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
+        <Card className={`bg-card border-0 rounded-4xl overflow-hidden transition-all duration-300 ease-out ${
           isMobile ? 'hover:shadow-xl' : 'hover:scale-[1.02] hover:shadow-2xl'
         }`}>
           <CardHeader className={`border-b border-border ${
@@ -223,10 +241,10 @@ export function Dashboard() {
             <CardTitle className={`font-bold flex items-center gap-3 ${
               isMobile ? 'text-lg' : 'text-xl'
             }`}>
-              <Building className={`text-blue-600 ${
+              {/* <Building className={`text-blue-600 ${
                 isMobile ? 'h-5 w-5' : 'h-6 w-6'
-              }`} />
-              Floor Details
+              }`} /> */}
+              Floor wise Occupancy Analysis
             </CardTitle>
             <p className={`text-muted-foreground mt-1 ${
               isMobile ? 'text-xs' : 'text-sm'
@@ -268,8 +286,8 @@ export function Dashboard() {
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
-                          className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300" 
-                          style={{ width: `${floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%` }}
+                          className="h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%` , background:'#22c55e'}}
                         ></div>
                       </div>
                     </div>
@@ -302,7 +320,7 @@ export function Dashboard() {
                         <td className="py-4 px-6 font-semibold">{floor.floor}</td>
                         <td className="py-4 px-6">{floor.total}</td>
                         <td className="py-4 px-6">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 font-medium">
                             {floor.occupied}
                           </span>
                         </td>
@@ -316,8 +334,8 @@ export function Dashboard() {
                           <div className="flex items-center gap-3">
                             <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 min-w-[60px]">
                               <div 
-                                className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300" 
-                                style={{ width: `${floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%` }}
+                                className=" h-2 rounded-full transition-all duration-300" 
+                                style={{ width: `${floor.total > 0 ? Math.round((floor.occupied / floor.total) * 100) : 0}%` , background:'#22c55e'}}
                               ></div>
                             </div>
                             <span className="text-sm font-semibold min-w-[3rem]">
@@ -342,8 +360,8 @@ export function Dashboard() {
         </Card>
 
         {/* Statistics Cards */}
-        <div className="mobile-grid gap-4 md:gap-6">
-          <Card className={`bg-card shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
+        <div className="mobile-grid gap-4 md:gap-6 rounded-4xl">
+          <Card className={`bg-card border-0 rounded-4xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
             isMobile ? 'hover:shadow-xl' : 'hover:shadow-2xl hover:scale-105'
           }`}>
             <CardContent className={isMobile ? "p-4" : "p-6"}>
@@ -372,7 +390,7 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className={`bg-card shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
+          <Card className={`bg-card border-0 rounded-4xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
             isMobile ? 'hover:shadow-xl' : 'hover:shadow-2xl hover:scale-105'
           }`}>
             <CardContent className={isMobile ? "p-4" : "p-6"}>
@@ -401,7 +419,7 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className={`bg-card shadow-lg border-0 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
+          <Card className={`bg-card border-0 rounded-4xl overflow-hidden cursor-pointer transition-all duration-300 ease-out ${
             isMobile ? 'hover:shadow-xl' : 'hover:shadow-2xl hover:scale-105'
           }`}>
             <CardContent className={isMobile ? "p-4" : "p-6"}>
@@ -432,61 +450,51 @@ export function Dashboard() {
         </div>
 
         {/* Floor-wise Occupancy Chart */}
-        <Card className={`bg-card shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
-          isMobile ? 'hover:shadow-xl' : 'hover:scale-[1.01] hover:shadow-2xl'
-        }`}>
-          <CardHeader className={`border-b border-border ${
-            isMobile ? 'px-4 py-4' : 'px-6 py-6'
-          }`}>
-            <CardTitle className={`font-bold flex items-center gap-3 ${
-              isMobile ? 'text-lg' : 'text-xl'
-            }`}>
-              <Building className={`text-blue-600 ${
-                isMobile ? 'h-5 w-5' : 'h-6 w-6'
-              }`} />
-              Floor-wise Occupancy Analysis
-            </CardTitle>
-            <p className={`text-muted-foreground mt-1 ${
-              isMobile ? 'text-xs' : 'text-sm'
-            }`}>Visual representation of shop occupancy across floors</p>
+        <Card className="bg-card border-0 rounded-4xl overflow-hidden hover:shadow-xl transition-shadow duration-300">
+          <CardHeader className=" py-6">
+            <CardTitle className="text-xl font-bold text-card-foreground">Floor Details</CardTitle>
           </CardHeader>
-          <CardContent className={isMobile ? "p-4" : "p-6"}>
+          <CardContent className={isMobile ? "py-4" : "p-6"}>
             <ResponsiveContainer width="100%" height={isMobile ? 250 : 350}>
               <BarChart 
                 data={floorData} 
                 margin={isMobile 
-                  ? { top: 10, right: 10, left: 10, bottom: 10 }
-                  : { top: 20, right: 30, left: 20, bottom: 20 }
+                  ? { top: 10, right: 20, left: -20, bottom: 40 }
+                  : { top: 20, right: 30, left: 20, bottom: 60 }
                 }
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                 <XAxis 
-                  dataKey="floor" 
-                  height={isMobile ? 40 : 60}
-                  tick={{ fontSize: isMobile ? 10 : 12, fill: '#6b7280' }}
-                  axisLine={{ stroke: '#d1d5db' }}
+                  dataKey={isMobile ? "floorAbbr" : "floor"}
+                  height={isMobile ? 60 : 80}
+                  tick={{ fontSize: isMobile ? 11 : 13, fill: '#6b7280' }}
+                  axisLine={{ stroke: '#e5e7eb' }}
+                  angle={0}
+                  interval={0}
                 />
                 <YAxis 
-                  tick={{ fontSize: isMobile ? 10 : 12, fill: '#6b7280' }}
-                  axisLine={{ stroke: '#d1d5db' }}
+                  tick={{ fontSize: isMobile ? 11 : 13, fill: '#6b7280' }}
+                  axisLine={false}
+                  tickLine={false}
                 />
                 <Tooltip 
                   contentStyle={{
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                    fontSize: isMobile ? '12px' : '14px'
+                    backgroundColor: '#000000',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: '#ffffff',
+                    fontSize: isMobile ? '12px' : '14px',
+                    padding: '8px 12px'
                   }}
+                  cursor={{ fill: 'transparent' }}
+                  formatter={(value: any, name: string) => {
+                    if (name === 'occupied') return [`Occupied: ${value}`, '']
+                    return [value, name]
+                  }}
+                  labelStyle={{ display: 'none' }}
                 />
-                <Bar dataKey="occupied" fill="url(#occupiedGradient)" name="Occupied" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="total" fill="#e5e7eb" name="Total" radius={[4, 4, 0, 0]} />
-                <defs>
-                  <linearGradient id="occupiedGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" />
-                    <stop offset="100%" stopColor="#1d4ed8" />
-                  </linearGradient>
-                </defs>
+                <Bar dataKey="occupied" fill="#22c55e" radius={[4, 4, 0, 0]} barSize={isMobile ? 40 : 72} />
+                <Bar dataKey="total" fill="#d1d5db" radius={[4, 4, 0, 0]} barSize={isMobile ? 40 : 72} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -496,7 +504,7 @@ export function Dashboard() {
         <div className={`grid grid-cols-1 gap-4 md:gap-6 ${
           isMobile ? '' : 'lg:grid-cols-2'
         }`}>
-          <Card className={`bg-card shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
+          <Card className={`bg-card border-0 rounded-4xl overflow-hidden transition-all duration-300 ease-out ${
             isMobile ? 'hover:shadow-xl' : 'hover:scale-[1.02] hover:shadow-2xl'
           }`}>
             <CardHeader className={`border-b border-border ${
@@ -505,9 +513,9 @@ export function Dashboard() {
               <CardTitle className={`font-bold flex items-center gap-3 ${
                 isMobile ? 'text-lg' : 'text-xl'
               }`}>
-                <FileText className={`text-green-600 ${
+                {/* <FileText className={`text-green-600 ${
                   isMobile ? 'h-5 w-5' : 'h-6 w-6'
-                }`} />
+                }`} /> */}
                 Rent Management Bills
               </CardTitle>
               <p className={`text-muted-foreground mt-1 ${
@@ -577,7 +585,7 @@ export function Dashboard() {
             </CardContent>
           </Card>
           
-          <Card className={`bg-card shadow-lg border-0 rounded-xl overflow-hidden transition-all duration-300 ease-out ${
+          <Card className={`bg-card border-0 rounded-4xl overflow-hidden transition-all duration-300 ease-out ${
             isMobile ? 'hover:shadow-xl' : 'hover:scale-[1.02] hover:shadow-2xl'
           }`}>
             <CardHeader className={`border-b border-border ${
@@ -586,9 +594,9 @@ export function Dashboard() {
               <CardTitle className={`font-bold flex items-center gap-3 ${
                 isMobile ? 'text-lg' : 'text-xl'
               }`}>
-                <CreditCard className={`text-purple-600 ${
+                {/* <CreditCard className={`text-purple-600 ${
                   isMobile ? 'h-5 w-5' : 'h-6 w-6'
-                }`} />
+                }`} /> */}
                 Maintenance Management Bills
               </CardTitle>
               <p className={`text-muted-foreground mt-1 ${
@@ -658,9 +666,6 @@ export function Dashboard() {
             </CardContent>
           </Card>
         </div>
-
-
-
       </div>
     </div>
   )

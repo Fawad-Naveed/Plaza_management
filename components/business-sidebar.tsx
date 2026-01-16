@@ -128,14 +128,14 @@ export function BusinessSidebar({
       {/* Sidebar Container */}
       <div
         className={`
-          fixed left-0 top-0 h-full bg-black text-white z-50 flex flex-col overflow-hidden shadow-xl max-h-screen
+          fixed left-0 top-0 h-full bg-[#F1F1F1] dark:bg-background z-50 flex flex-col overflow-hidden max-h-screen
           transition-all duration-300 ease-in-out
           ${
             isMobile 
               ? `w-80 ${isMobileDrawerOpen ? 'mobile-nav-visible' : 'mobile-nav-hidden'}`
               : collapsed 
-                ? "w-16" 
-                : "w-64"
+                ? "w-20" 
+                : "w-72"
           }
         `}
         onTouchStart={handleTouchStart}
@@ -143,7 +143,7 @@ export function BusinessSidebar({
         onTouchEnd={handleTouchEndWithSwipe}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-black min-h-[64px]">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-[#F1F1F1] dark:bg-background min-h-[64px]">
           <div className="flex items-center gap-3">
             {isMobile && (
               <div className="flex items-center justify-center w-8 h-8 bg-black-600 rounded-lg">
@@ -152,15 +152,15 @@ export function BusinessSidebar({
             )}
             <div className="flex flex-col">
               <Image
-                src="/logo.png"
+                src="/Logo.png"
                 alt="Plaza Management"
-                width={collapsed && !isMobile ? 44 : isMobile ? 150 : 130}
-                height={collapsed && !isMobile ? 44 : isMobile ? 150 : 130}
+                width={collapsed && !isMobile ? 44 : isMobile ? 10 : 41}
+                height={collapsed && !isMobile ? 44 : isMobile ? 10 : 41}
                 className="object-contain"
                 priority
               />
               {(!collapsed || isMobile) && (
-                <h1 className={`font-bold tracking-wide text-left mt-1 ${
+                <h1 className={`font-bold tracking-wide text-left mt-1 text-black dark:text-white ${
                   isMobile ? 'text-sm' : 'text-sm'
                 }`}>
                   Business Portal
@@ -172,23 +172,21 @@ export function BusinessSidebar({
             variant="ghost" 
             size="sm" 
             onClick={isMobile ? onMobileDrawerToggle : onToggleCollapse} 
-            className="text-gray-300 hover:text-white hover:bg-gray-700 rounded-md touch-button"
+            className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md touch-button"
           >
             {(collapsed && !isMobile) ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
           </Button>
         </div>
 
         {/* Navigation */}
-        <nav className={`${isMobile ? 'p-4' : 'p-3'} flex-1 overflow-y-auto pr-1 scroll-smooth pb-4 min-h-0`} style={{
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#4B5563 #1F2937'
-        }}>
+        <div className="relative flex-1 min-h-0">
+          <nav className={`${isMobile ? 'p-4' : 'p-3'} h-full overflow-y-auto pr-1 scroll-smooth pb-4 scrollbar-hide`}>
           {navigationItems.map((item) => (
             <div key={item.id} className={isMobile ? "mb-3" : "mb-2"}>
               <Button
                 variant="ghost"
-                className={`w-full justify-start text-left hover:bg-gray-700 hover:text-white hover:scale-105 transition-all duration-200 rounded-lg ${
-                  isActive(item.id) ? "bg-gray-700 text-white" : "text-gray-300"
+                className={`w-full justify-start text-left hover:bg-[#FDFDFD] dark:hover:bg-gray-800 transition-all duration-200 rounded-lg ${
+                  isActive(item.id) ? "bg-[#FDFDFD] dark:bg-gray-800 text-gray-900 dark:text-white font-medium" : "text-gray-600 dark:text-gray-300"
                 } ${
                   collapsed && !isMobile ? "px-2 py-3" : isMobile ? "px-4 py-4 touch-button" : "px-3 py-2"
                 } ${item.id === 'queries' && collapsed && !isMobile ? 'relative' : ''}`}
@@ -209,10 +207,13 @@ export function BusinessSidebar({
               </Button>
             </div>
           ))}
-        </nav>
+          </nav>
+          {/* Bottom gradient overlay */}
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#F1F1F1] dark:from-background to-transparent pointer-events-none" />
+        </div>
 
         {/* Theme Toggle and Logout Buttons */}
-        <div className={`border-t border-gray-700 flex-shrink-0 ${
+        <div className={`border-t border-gray-200 dark:border-gray-700 flex-shrink-0 ${
           isMobile ? 'p-4' : 'p-3'
         }`}>
           {/* Theme Toggle Button */}
@@ -220,7 +221,7 @@ export function BusinessSidebar({
             variant="ghost"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             disabled={!mounted}
-            className={`w-full justify-start text-left hover:bg-gray-700 hover:text-white transition-all duration-200 rounded-lg text-gray-300 group ${
+            className={`w-full justify-start text-left hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 rounded-lg text-gray-600 dark:text-gray-300 group ${
               collapsed && !isMobile ? "px-2 py-3" : isMobile ? "px-4 py-4 touch-button" : "px-3 py-2"
             } ${isMobile ? 'mb-3' : 'mb-2'}`}
           >
@@ -253,17 +254,17 @@ export function BusinessSidebar({
           <Button
             variant="ghost"
             onClick={logout}
-            className={`w-full justify-start text-left hover:bg-red-600 hover:text-white transition-all duration-200 rounded-lg text-gray-300 group ${
+            className={`w-full justify-start text-left hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 rounded-lg text-gray-600 dark:text-gray-300 group ${
               collapsed && !isMobile ? "px-2 py-3" : isMobile ? "px-4 py-4 touch-button" : "px-3 py-2"
             }`}
           >
             {(collapsed && !isMobile) ? (
               <div className="w-full flex justify-center">
-                <LogOut className="h-4 w-4 group-hover:text-white" />
+                <LogOut className="h-4 w-4 group-hover:text-red-600 dark:group-hover:text-red-400" />
               </div>
             ) : (
               <>
-                <LogOut className={`${isMobile ? 'h-5 w-5 mr-3' : 'h-4 w-4 mr-3'} group-hover:text-white`} />
+                <LogOut className={`${isMobile ? 'h-5 w-5 mr-3' : 'h-4 w-4 mr-3'} group-hover:text-red-600 dark:group-hover:text-red-400`} />
                 <span className={isMobile ? 'text-base' : ''}>Sign Out</span>
               </>
             )}
@@ -272,7 +273,7 @@ export function BusinessSidebar({
 
         {/* Business Branding */}
         {businessName && (
-          <div className={`border-t border-gray-700 mt-auto flex-shrink-0 bg-black ${
+          <div className={`border-t border-gray-200 dark:border-gray-700 mt-auto flex-shrink-0 bg-[#F1F1F1] dark:bg-background ${
             isMobile ? 'p-4' : 'p-4'
           }`}>
             {(!collapsed || isMobile) ? (
@@ -285,12 +286,12 @@ export function BusinessSidebar({
                   }`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`font-semibold text-white truncate ${
+                  <p className={`font-semibold text-gray-900 dark:text-white truncate ${
                     isMobile ? 'text-base' : 'text-sm'
                   }`}>
                     {businessName}
                   </p>
-                  <p className={`text-gray-300 truncate ${
+                  <p className={`text-gray-600 dark:text-gray-300 truncate ${
                     isMobile ? 'text-sm' : 'text-xs'
                   }`}>
                     Business Portal

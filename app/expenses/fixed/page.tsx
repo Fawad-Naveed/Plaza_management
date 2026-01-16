@@ -170,18 +170,18 @@ export default function FixedExpensesPage() {
   const paidSalaries = salaryRecords.filter((r) => r.status === "paid").length
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Fixed Expenses</h1>
-          <p className="text-muted-foreground mt-1">Manage recurring plaza expenses</p>
+          <h1 className="text-xl font-medium">Fixed Expenses</h1>
+          <p className="text-md text-muted-foreground mt-1">Manage recurring plaza expenses</p>
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Card s */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card>
+        <Card className="rounded-4xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Utilities</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -192,7 +192,7 @@ export default function FixedExpensesPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-4xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Bills</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -203,7 +203,7 @@ export default function FixedExpensesPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-4xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Salaries</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -214,7 +214,7 @@ export default function FixedExpensesPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-4xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Paid Salaries</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
@@ -247,7 +247,7 @@ export default function FixedExpensesPage() {
                   Add Bill
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-4xl">
                 <DialogHeader>
                   <DialogTitle>Add Utility Bill</DialogTitle>
                 </DialogHeader>
@@ -262,7 +262,7 @@ export default function FixedExpensesPage() {
             </Dialog>
           </div>
 
-          <Card>
+          <Card className="rounded-4xl">
             <CardContent className="pt-6">
               {loading ? (
                 <div className="flex justify-center items-center py-8">
@@ -343,7 +343,7 @@ export default function FixedExpensesPage() {
             </Link>
           </div>
 
-          <Card>
+          <Card className="rounded-4xl">
             <CardContent className="pt-6">
               {loading ? (
                 <div className="flex justify-center items-center py-8">
@@ -427,7 +427,7 @@ export default function FixedExpensesPage() {
             </div>
           </div>
 
-          <Card>
+          <Card className="rounded-4xl">
             <CardContent className="pt-6">
               {loading ? (
                 <div className="flex justify-center items-center py-8">

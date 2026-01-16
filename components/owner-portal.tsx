@@ -76,14 +76,16 @@ const ActivityHistory = dynamic(() => import("@/components/activity-history").th
 
 // Owner navigation items - includes everything plus admin management
 export const ownerNavigationItems: NavigationItem[] = [
-  { id: "dashboard", label: "Dashboard" },
+  { id: "dashboard", label: "Dashboard", icon: "LayoutDashboard" },
   {
     id: "admin-mgmt",
-    label: "Admin Management",
+    label: "Admin",
+    icon: "UserCog",
   },
   {
     id: "customer",
-    label: "Business Management",
+    label: "Business",
+    icon: "Building2",
     subItems: [
       { id: "customer-add", label: "Add Business" },
       { id: "customer-view", label: "View Businesses" },
@@ -96,7 +98,8 @@ export const ownerNavigationItems: NavigationItem[] = [
   },
   {
     id: "rent-billing",
-    label: "Rent Management",
+    label: "Rent",
+    icon: "Home",
     subItems: [
       { id: "bill-generate", label: "Generate Bills" },
       { id: "bill-all", label: "All Bills" },
@@ -104,7 +107,8 @@ export const ownerNavigationItems: NavigationItem[] = [
   },
   {
     id: "payments",
-    label: "Payment Management",
+    label: "Payment",
+    icon: "CreditCard",
     subItems: [
       { id: "payment-unpaid", label: "Pending Payments" },
       { id: "payment-paid", label: "Payment History" },
@@ -112,7 +116,8 @@ export const ownerNavigationItems: NavigationItem[] = [
   },
   {
     id: "electricity",
-    label: "Electricity Management",
+    label: "Electricity",
+    icon: "Zap",
     subItems: [
       { id: "meter-add-reading", label: "Meter Reading" },
       { id: "electricity-all", label: "All Bills" },
@@ -120,7 +125,8 @@ export const ownerNavigationItems: NavigationItem[] = [
   },
   {
     id: "gas",
-    label: "Gas Management",
+    label: "Gas",
+    icon: "Flame",
     subItems: [
       { id: "gas-add-reading", label: "Meter Reading" },
       { id: "gas-all", label: "All Bills" },
@@ -128,7 +134,8 @@ export const ownerNavigationItems: NavigationItem[] = [
   },
   {
     id: "maintenance",
-    label: "Maintenance Management",
+    label: "Maintenance",
+    icon: "Wrench",
     subItems: [
       { id: "maintenance-bill", label: "Generate Bills" },
       { id: "maintenance-unpaid", label: "Unpaid Bills" },
@@ -139,6 +146,7 @@ export const ownerNavigationItems: NavigationItem[] = [
   {
     id: "reports",
     label: "Reports",
+    icon: "FileText",
     subItems: [
       { id: "reports-rent", label: "Rent History" },
       { id: "reports-maintenance", label: "Maintenance History" },
@@ -149,6 +157,7 @@ export const ownerNavigationItems: NavigationItem[] = [
   {
     id: "expenses",
     label: "Expense Tracking",
+    icon: "Wallet",
     subItems: [
       { id: "expenses-dashboard", label: "Dashboard" },
       { id: "expenses-staff", label: "Staff Management" },
@@ -156,11 +165,11 @@ export const ownerNavigationItems: NavigationItem[] = [
       { id: "expenses-variable", label: "Variable Expenses" },
     ],
   },
-  { id: "queries", label: "Queries" },
-  { id: "waveoff", label: "Wave off" },
-  { id: "tc", label: "Term and Condition" },
-  { id: "activity-history", label: "Activity History" },
-  { id: "settings", label: "Settings" },
+  { id: "queries", label: "Queries", icon: "HelpCircle" },
+  { id: "waveoff", label: "Wave off", icon: "FileX" },
+  { id: "tc", label: "Term and Condition", icon: "FileCheck" },
+  { id: "activity-history", label: "Activity History", icon: "History" },
+  { id: "settings", label: "Settings", icon: "Settings" },
 ]
 
 export function OwnerPortal() {
@@ -243,6 +252,7 @@ export function OwnerPortal() {
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         isMobileDrawerOpen={isMobileDrawerOpen}
         onMobileDrawerToggle={toggleMobileDrawer}
+        portalType="owner"
       />
       
       {/* Main Content Area */}
@@ -272,11 +282,11 @@ export function OwnerPortal() {
             isMobile 
               ? "" // No margin on mobile, content takes full width
               : sidebarCollapsed 
-                ? "ml-16" 
-                : "ml-64"
+                ? "ml-20" 
+                : "ml-72"
           }
         `}>
-          <div className={isMobile ? "mobile-p" : "p-6"}>
+          <div className={isMobile ? "mobile-p" : "p-5"}>
             {renderContent()}
           </div>
         </main>

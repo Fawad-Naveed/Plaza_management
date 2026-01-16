@@ -798,7 +798,7 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
     <div className="space-y-6">
       {/* Date Filter Controls */}
       {billsSubTab !== "all" && (
-        <Card className="border-0">
+        <Card className="border-0 rounded-4xl">
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 md:max-w-xs">
@@ -1291,7 +1291,7 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
     <div className="space-y-6">
       {/* Date Filter Controls */}
       {subTab !== "all" && (
-        <Card className="border-0">
+        <Card className="border-0 rounded-4xl">
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 md:max-w-xs">
@@ -2277,7 +2277,7 @@ export function MaintenanceModule({ activeSubSection = "maintenance-bill" }: Mai
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-black">{getSectionTitle()}</h1>
+      <h1 className="text-xl font-medium text-black">{getSectionTitle()}</h1>
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">

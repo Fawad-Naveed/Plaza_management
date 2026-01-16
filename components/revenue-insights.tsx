@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, TrendingUp, DollarSign, FileText, Zap, Home, Wrench, Flame, AlertTriangle, Filter, Calendar } from "lucide-react"
 import dynamic from "next/dynamic"
 import { getRevenueByMonth, getRevenueStats, getWavedOffDebt } from "@/lib/database"
+import { useBreakpoint } from "@/hooks/use-mobile"
 
 // Dynamically import recharts components
 const ResponsiveContainer = dynamic(() => import("recharts").then(m => m.ResponsiveContainer), { ssr: false })
@@ -64,6 +65,7 @@ interface RevenueStats {
 }
 
 export function RevenueInsights() {
+  const { isMobile } = useBreakpoint()
   const [revenueData, setRevenueData] = useState<RevenueData[]>([])
   const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null)
   const [totalDebt, setTotalDebt] = useState<number>(0)
@@ -253,241 +255,257 @@ export function RevenueInsights() {
 
   return (
     <div className="space-y-6">
-      {/* Filter Section */}
-      <Card className="border-0">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              <span className="font-medium">Filters:</span>
-            </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <Select value={timePeriod} onValueChange={(value: any) => handlePeriodChange(value)}>
+      <div className="rounded-4xl p-6 bg-card border border-border shadow-[0_5px_1.5px_-4px_rgba(8,8,8,0.05)]">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-2">
+                <span className="font-medium text-[20px]">Overview</span>
+              </div>
+          <div className="flex items-center gap-3 flex-wrap bg-card">
+            <Select value={timePeriod} onValueChange={(value: any) => handlePeriodChange(value)}>
+              <SelectTrigger className="w-50 py-6 px-5 rounded-full ">
+                <SelectValue placeholder="Select period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="month">
+                  <div className="flex items-center gap-2 text-[14px]">
+                  {/* <Calendar className="h-4 w-4" /> */}
+                    This Month
+                  </div>
+                </SelectItem>
+                <SelectItem value="quarter">
+                  <div className="flex items-center gap-2 text-[14px]">
+                    {/* <Calendar className="h-4 w-4" /> */}
+                    This Quarter
+                  </div>
+                </SelectItem>
+                <SelectItem value="year">
+                  <div className="flex items-center gap-2 text-[14px]">
+                    {/* <Calendar className="h-4 w-4" /> */}
+                    This Year
+                  </div>
+                </SelectItem>
+                <SelectItem value="all">
+                  <div className="flex items-center gap-2 text-[14px]">
+                    {/* <TrendingUp className="h-4 w-4" /> */}
+                    All Time
+                  </div>
+                </SelectItem>
+                <SelectItem value="custom">
+                  <div className="flex items-center gap-2 text-[14px]">
+                    {/* <Calendar className="h-4 w-4" /> */}
+                    Custom Month
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {timePeriod === 'custom' && (
+              <Select value={selectedMonth} onValueChange={handleMonthChange}>
                 <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Select period" />
+                  <SelectValue placeholder="Select month" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="month">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      This Month
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="quarter">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      This Quarter
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="year">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      This Year
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="all">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4" />
-                      All Time
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="custom">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Custom Month
-                    </div>
-                  </SelectItem>
+                  {availableMonths.map(month => (
+                    <SelectItem key={month.value} value={month.value}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              
-              {timePeriod === 'custom' && (
-                <Select value={selectedMonth} onValueChange={handleMonthChange}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Select month" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableMonths.map(month => (
-                      <SelectItem key={month.value} value={month.value}>
-                        {month.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
-      
-      {/* Revenue Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total Revenue Card */}
-        <Card className="border-0 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-500 rounded-lg">
-                <DollarSign className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Total Revenue</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(revenueStats?.totalRevenue || 0)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Rent Revenue Card */}
-        <Card className="border-0 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-600 rounded-lg">
-                <Home className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Rent Revenue</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {formatCurrency(revenueStats?.revenueByComponent.rent || 0)}
-                </p>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">
-                    {revenueStats?.billCountsByComponent?.rent || 0} paid bills
-                  </p>
-                  {(revenueStats?.unpaidByComponent?.rent || 0) > 0 && (
-                    <p className="text-xs text-red-500">
-                      {formatCurrency(revenueStats?.unpaidByComponent.rent || 0)} unpaid ({revenueStats?.unpaidBillCountsByComponent?.rent || 0} bills)
+        </div>
+        {/* Revenue Statistics Cards */}
+        <div className="flex flex-col gap-2 mt-4 bg-background p-1 rounded-4xl">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
+            {/* Total Revenue Card */}
+            <Card className="rounded-[32px] border border-border shadow-[0_5px_1.5px_-4px_rgba(8,8,8,0.05)] hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer bg-card">
+              <CardContent className="p-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg">
+                    <DollarSign className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <p className="text-base font-medium leading-[150%] tracking-[0.024px] text-card-foreground">Total Revenue</p>
+                    </div>
+                    <p className="text-[14px] font-normal leading-[150%] tracking-[0.035px] text-muted-foreground mt-0.5">
+                      {revenueStats?.billCountsByComponent?.rent || 0} paid bills
                     </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Electricity Revenue Card */}
-        <Card className="border-0 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-yellow-500 rounded-lg">
-                <Zap className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Electricity</p>
-                <p className="text-2xl font-bold text-yellow-600">
-                  {formatCurrency(revenueStats?.revenueByComponent.electricity || 0)}
-                </p>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">
-                    {revenueStats?.billCountsByComponent?.electricity || 0} paid bills
-                  </p>
-                  {(revenueStats?.unpaidByComponent?.electricity || 0) > 0 && (
-                    <p className="text-xs text-red-500">
-                      {formatCurrency(revenueStats?.unpaidByComponent.electricity || 0)} unpaid
+                    <p className={`font-medium leading-[125%] tracking-[-0.3px] text-card-foreground mt-2 ${
+                      isMobile ? 'text-[40px]' : 'text-[60px]'
+                    }`}>
+                      {(revenueStats?.totalRevenue || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </p>
-                  )}
+                  </div>
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* Maintenance Revenue Card */}
-        <Card className="border-0 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-600 rounded-lg">
-                <Wrench className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Maintenance</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {formatCurrency(revenueStats?.revenueByComponent.maintenance || 0)}
-                </p>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">
-                    {revenueStats?.billCountsByComponent?.maintenance || 0} paid bills
-                  </p>
-                  {(revenueStats?.unpaidByComponent?.maintenance || 0) > 0 && (
-                    <p className="text-xs text-red-500">
-                      {formatCurrency(revenueStats?.unpaidByComponent.maintenance || 0)} unpaid ({revenueStats?.unpaidBillCountsByComponent?.maintenance || 0} bills)
+            {/* Rent Revenue Card */}
+            <Card className="rounded-[32px] border border-border shadow-[0_5px_1.5px_-4px_rgba(8,8,8,0.05)] hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer bg-card">
+              <CardContent className="p-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg">
+                    <Home className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <p className="text-base font-medium leading-[150%] tracking-[0.024px] text-card-foreground">Rent Revenue</p>
+                      {(revenueStats?.unpaidBillCountsByComponent?.rent || 0) > 0 && (
+                        <span className="text-[14px] font-normal text-[#FF6B6B] bg-destructive/10 px-2 py-0.5 rounded-full">
+                          {revenueStats?.unpaidBillCountsByComponent?.rent.toString().padStart(2, '0')} unpaid bill
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[14px] font-normal leading-[150%] tracking-[0.035px] text-muted-foreground mt-0.5">
+                      {revenueStats?.billCountsByComponent?.rent || 0} paid bills
                     </p>
-                  )}
+                    <p className={`font-medium leading-[125%] tracking-[-0.3px] text-card-foreground mt-2 ${
+                      isMobile ? 'text-[40px]' : 'text-[60px]'
+                    }`}>
+                      {(revenueStats?.revenueByComponent.rent || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+
+            {/* Maintenance Revenue Card */}
+            <Card className="rounded-[32px] border border-border shadow-[0_5px_1.5px_-4px_rgba(8,8,8,0.05)] hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer bg-card">
+              <CardContent className="p-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg">
+                    <Wrench className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <p className="text-base font-medium leading-[150%] tracking-[0.024px] text-card-foreground">Maintenance</p>
+                      {(revenueStats?.unpaidBillCountsByComponent?.maintenance || 0) > 0 && (
+                        <span className="text-[14px] font-normal text-[#FF6B6B] bg-destructive/10 px-2 py-0.5 rounded-full">
+                          {revenueStats?.unpaidBillCountsByComponent?.maintenance.toString().padStart(2, '0')} unpaid bill
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[14px] font-normal leading-[150%] tracking-[0.035px] text-muted-foreground mt-0.5">
+                      0 paid bills
+                    </p>
+                    <p className={`font-medium leading-[125%] tracking-[-0.3px] text-card-foreground mt-2 ${
+                      isMobile ? 'text-[40px]' : 'text-[60px]'
+                    }`}>
+                      {(revenueStats?.revenueByComponent.maintenance || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Second Row */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-1">
+            {/* Electricity Card */}
+            <Card className="rounded-[32px] border border-border shadow-[0_5px_1.5px_-4px_rgba(8,8,8,0.05)] hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer bg-card">
+              <CardContent className="p-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg">
+                    <Zap className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <p className="text-base font-medium leading-[150%] tracking-[0.024px] text-card-foreground">Electricity</p>
+                    </div>
+                    <p className="text-[14px] font-normal leading-[150%] tracking-[0.035px] text-muted-foreground mt-0.5">
+                      {revenueStats?.billCountsByComponent?.electricity || 0} paid bills
+                    </p>
+                    <p className={`font-medium leading-[125%] tracking-[-0.3px] text-card-foreground mt-2 ${
+                      isMobile ? 'text-[40px]' : 'text-[60px]'
+                    }`}>
+                      {(revenueStats?.revenueByComponent.electricity || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Gas Revenue Card */}
+            <Card className="rounded-[32px] border border-border shadow-[0_5px_1.5px_-4px_rgba(8,8,8,0.05)] hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer bg-card">
+              <CardContent className="p-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg">
+                    <Flame className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <p className="text-base font-medium leading-[150%] tracking-[0.024px] text-card-foreground">Gas Revenue</p>
+                      {(revenueStats?.unpaidBillCountsByComponent?.gas || 0) > 0 && (
+                        <span className="text-[14px] font-normal text-[#FF6B6B] bg-destructive/10 px-2 py-0.5 rounded-full">
+                          {revenueStats?.unpaidBillCountsByComponent?.gas.toString().padStart(2, '0')} unpaid bill
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[14px] font-normal leading-[150%] tracking-[0.035px] text-muted-foreground mt-0.5">
+                      {revenueStats?.billCountsByComponent?.gas || 0} paid bills
+                    </p>
+                    <p className={`font-medium leading-[125%] tracking-[-0.3px] text-card-foreground mt-2 ${
+                      isMobile ? 'text-[40px]' : 'text-[60px]'
+                    }`}>
+                      {(revenueStats?.revenueByComponent.gas || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Debt Card */}
+            <Card className="rounded-[32px] border border-border shadow-[0_5px_1.5px_-4px_rgba(8,8,8,0.05)] hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer bg-card">
+              <CardContent className="p-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <p className="text-base font-medium leading-[150%] tracking-[0.024px] text-card-foreground">Debt</p>
+                    </div>
+                    <p className="text-[14px] font-normal leading-[150%] tracking-[0.035px] text-muted-foreground mt-0.5">
+                      Total waved off bills
+                    </p>
+                    <p className={`font-medium leading-[125%] tracking-[-0.3px] text-card-foreground mt-2 ${
+                      isMobile ? 'text-[40px]' : 'text-[60px]'
+                    }`}>
+                      {(totalDebt || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="rounded-[32px] border border-border shadow-[0_5px_1.5px_-4px_rgba(8,8,8,0.05)] hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer bg-card">
+              <CardContent className="p-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <p className="text-base font-medium leading-[150%] tracking-[0.024px] text-card-foreground">Bills Generated</p>
+                    </div>
+                    <p className="text-[14px] font-normal leading-[150%] tracking-[0.035px] text-muted-foreground mt-0.5">
+                      Total bills created
+                    </p>
+                    <p className={`font-medium leading-[125%] tracking-[-0.3px] text-card-foreground mt-2 ${
+                      isMobile ? 'text-[40px]' : 'text-[60px]'
+                    }`}>
+                      {(revenueStats?.totalBillsGenerated || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
-
-      {/* Additional Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Gas Revenue Card */}
-        <Card className="border-0 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-orange-500 rounded-lg">
-                <Flame className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Gas Revenue</p>
-                <p className="text-2xl font-bold text-orange-600">
-                  {formatCurrency(revenueStats?.revenueByComponent.gas || 0)}
-                </p>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">
-                    {revenueStats?.billCountsByComponent?.gas || 0} paid bills
-                  </p>
-                  {(revenueStats?.unpaidByComponent?.gas || 0) > 0 && (
-                    <p className="text-xs text-red-500">
-                      {formatCurrency(revenueStats?.unpaidByComponent.gas || 0)} unpaid ({revenueStats?.unpaidBillCountsByComponent?.gas || 0} bills)
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Debt Card - Waved Off Bills */}
-        <Card className="border-0 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-red-500 rounded-lg">
-                <AlertTriangle className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Debt</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {formatCurrency(totalDebt || 0)}
-                </p>
-                <p className="text-xs text-muted-foreground">Waved off bills total</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Total Bills Generated */}
-        <Card className="border-0 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-out cursor-pointer">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-gray-600 rounded-lg">
-                <FileText className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Bills Generated</p>
-                <p className="text-2xl font-bold">
-                  {revenueStats?.totalBillsGenerated || 0}
-                </p>
-                <p className="text-xs text-muted-foreground">Total bills created</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Revenue Trends Chart */}
-      <Card className="border-0 hover:scale-[1.01] transition-all duration-300 ease-out hover:shadow-xl">
+      <Card className="border-0 hover:scale-[1.01] transition-all duration-300 ease-out hover:shadow-xl rounded-4xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />

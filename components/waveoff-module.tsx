@@ -228,19 +228,19 @@ export function WaveoffModule() {
   const meterReadings = filteredBills.filter(bill => bill.type === "meter-reading")
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background py-4">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold tracking-tight">Wave off Management</h1>
-            <p className="text-lg text-muted-foreground mt-2">All waved off bills across all modules</p>
+            <h1 className="text-xl font-medium tracking-tight">Wave off Management</h1>
+            <p className="text-md text-muted-foreground mt-2">All waved off bills across all modules</p>
           </div>
         </div>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="border-0 hover:shadow-lg transition-all duration-300">
+          <Card className="border-0 hover:shadow-lg transition-all duration-300 rounded-4xl">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-red-500 rounded-lg">
@@ -257,7 +257,7 @@ export function WaveoffModule() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 hover:shadow-lg transition-all duration-300">
+          <Card className="border-0 hover:shadow-lg transition-all duration-300 rounded-4xl">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-blue-500 rounded-lg">
@@ -277,7 +277,7 @@ export function WaveoffModule() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 hover:shadow-lg transition-all duration-300">
+          <Card className="border-0 hover:shadow-lg transition-all duration-300 rounded-4xl">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-purple-500 rounded-lg">
@@ -294,7 +294,7 @@ export function WaveoffModule() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 hover:shadow-lg transition-all duration-300">
+          <Card className="border-0 hover:shadow-lg transition-all duration-300 rounded-4xl">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-green-500 rounded-lg">
@@ -313,7 +313,7 @@ export function WaveoffModule() {
         </div>
 
         {/* Bills List with Tabs */}
-        <Card className="border-0 shadow-lg">
+        <Card className="border-0 shadow-lg rounded-4xl">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-xl font-semibold">Waved Off Bills</CardTitle>

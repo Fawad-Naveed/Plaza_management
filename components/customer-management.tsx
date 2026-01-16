@@ -905,7 +905,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
   }
 
   const renderAddBusiness = () => (
-    <Card className="border-0">
+    <Card className="border-0 rounded-4xl">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Add New Business</CardTitle>
       </CardHeader>
@@ -1281,7 +1281,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
   )
 
   const renderViewBusiness = () => (
-    <Card className="border-0">
+    <Card className="border-0 rounded-4xl">
       <CardHeader className={isMobile ? "pb-3" : ""}>
         <div className={`flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'}`}>
           <CardTitle className={`font-semibold ${isMobile ? 'text-xl text-center' : 'text-lg'}`}>
@@ -2168,8 +2168,8 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
   )
 
   const renderFloors = () => (
-    <div className="space-y-6">
-      <Card className="border-0">
+    <div className="space-y-6 ">
+      <Card className="border-0 rounded-4xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Add New Floor</CardTitle>
         </CardHeader>
@@ -2222,7 +2222,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
         </CardContent>
       </Card>
 
-      <Card className="border-0">
+      <Card className="border-0 rounded-4xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">All Floors</CardTitle>
         </CardHeader>
@@ -2496,7 +2496,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
 
   const renderAdvance = () => (
     <div className="space-y-6">
-      <Card className="border-0">
+      <Card className="border-0 rounded-4xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Add New Advance Payment</CardTitle>
         </CardHeader>
@@ -2636,7 +2636,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
         </CardContent>
       </Card>
 
-      <Card className="border-0">
+      <Card className="border-0 rounded-4xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Business Advance Management</CardTitle>
         </CardHeader>
@@ -2720,7 +2720,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
 
   const renderPartialPayments = () => (
     <div className="space-y-6">
-      <Card className="border-0">
+      <Card className="border-0 rounded-4xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Create New Partial Payment</CardTitle>
         </CardHeader>
@@ -2849,7 +2849,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
         </CardContent>
       </Card>
 
-      <Card className="border-0">
+      <Card className="border-0 rounded-4xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Partial Payment Records</CardTitle>
         </CardHeader>
@@ -2967,7 +2967,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
 
   const renderTheft = () => (
     <div className="space-y-6">
-      <Card className="border-0">
+      <Card className="border-0 rounded-4xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Add Theft Record</CardTitle>
         </CardHeader>
@@ -3028,7 +3028,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
         </CardContent>
       </Card>
 
-      <Card className="border-0">
+      <Card className="border-0 rounded-4xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Theft Records</CardTitle>
         </CardHeader>
@@ -3068,7 +3068,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
     const electricityManagedBusinesses = businesses.filter(business => business.electricity_management)
     
     return (
-      <Card className="border-0">
+      <Card className="border-0 rounded-4xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Meter Load Management</CardTitle>
           <p className="text-sm text-gray-600">Only businesses with electricity management enabled are shown</p>
@@ -3145,7 +3145,7 @@ export function CustomerManagement({ activeSubSection }: CustomerManagementProps
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-black">{getSectionTitle()}</h1>
+      <h1 className="text-xl font-medium text-black">{getSectionTitle()}</h1>
       {renderContent()}
     </div>
   )

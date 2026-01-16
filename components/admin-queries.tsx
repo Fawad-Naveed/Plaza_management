@@ -32,6 +32,7 @@ import {
   Loader2
 } from "lucide-react"
 import { clientDb, type Query, type Business } from "@/lib/database"
+import { logActivity, ACTION_TYPES } from "@/lib/activity-logger"
 
 // Extended query interface with business information
 interface QueryWithBusiness extends Query {
@@ -191,6 +192,7 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
     setUpdatingStatus(queryId)
     setError('')
     try {
+      const query = queries.find(q => q.id === queryId)
       const result = await clientDb.updateQuery(queryId, { 
         status: newStatus as Query['status']
       })
@@ -199,6 +201,20 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
         console.error('Error updating query status:', result.error)
         setError('Failed to update query status')
         return
+      }
+
+      // Log activity for query status change
+      if (query && (newStatus === 'in-progress' || newStatus === 'resolved')) {
+        await logActivity({
+          action_type: ACTION_TYPES.QUERY_STATUS_CHANGED,
+          entity_type: 'query',
+          entity_id: queryId,
+          entity_name: query.business?.name || 'Unknown',
+          description: `Changed query status to "${newStatus}" for ${query.business?.name || 'Unknown'} - ${query.title}`,
+          old_value: { status: query.status },
+          new_value: { status: newStatus },
+          notes: `Query: ${query.title}`
+        })
       }
 
       // Update local state
@@ -219,6 +235,7 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
     if (!responseMessage.trim()) return
 
     try {
+      const query = queries.find(q => q.id === queryId)
       const result = await clientDb.updateQuery(queryId, { 
         admin_response: responseMessage,
         admin_response_date: new Date().toISOString(),
@@ -229,6 +246,18 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
         console.error('Error submitting response:', result.error)
         setError('Failed to submit response')
         return
+      }
+
+      // Log activity for query response
+      if (query) {
+        await logActivity({
+          action_type: ACTION_TYPES.QUERY_RESPONDED,
+          entity_type: 'query',
+          entity_id: queryId,
+          entity_name: query.business?.name || 'Unknown',
+          description: `Responded to query from ${query.business?.name || 'Unknown'} - ${query.title}`,
+          notes: `Response: ${responseMessage.substring(0, 100)}${responseMessage.length > 100 ? '...' : ''}`
+        })
       }
 
       // Update local state
@@ -253,26 +282,24 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background py-4">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="bg-card rounded-xl shadow-sm border border-border p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
+              {/* <div className="p-2 bg-blue-100 rounded-lg">
                 <HelpCircle className="h-6 w-6 text-blue-600" />
-              </div>
+              </div> */}
               <div>
-                <h1 className="text-2xl font-bold">Query Management</h1>
-                <p className="text-muted-foreground">Manage and respond to business queries</p>
+                <h1 className="text-xl font-medium">Query Management</h1>
+                <p className="text-md text-muted-foreground">Manage and respond to business queries</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {/* <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span>Last updated: {new Date().toLocaleString()}</span>
-            </div>
+            </div> */}
           </div>
-        </div>
 
         {/* Error Display */}
         {error && (
@@ -286,7 +313,7 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="hover:shadow-lg transition-shadow duration-200">
+          <Card className="hover:shadow-lg transition-shadow duration-200 rounded-4xl">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-red-100 rounded-lg">
@@ -302,7 +329,7 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow duration-200">
+          <Card className="hover:shadow-lg transition-shadow duration-200 rounded-4xl">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-yellow-100 rounded-lg">
@@ -318,7 +345,7 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow duration-200">
+          <Card className="hover:shadow-lg transition-shadow duration-200 rounded-4xl">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-green-100 rounded-lg">
@@ -334,7 +361,7 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow duration-200">
+          <Card className="hover:shadow-lg transition-shadow duration-200 rounded-4xl">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 rounded-lg">
@@ -350,7 +377,7 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
         </div>
 
         {/* Filters */}
-        <Card>
+        <Card className="rounded-4xl">
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="relative">
@@ -407,7 +434,7 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
         </Card>
 
         {/* Queries Table */}
-        <Card>
+        <Card className="rounded-4xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5" />
@@ -458,7 +485,7 @@ export function AdminQueries({ activeSubSection }: AdminQueriesProps) {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <p>{formatDate(query.createdAt)}</p>
+                        <p>{formatDate(query.created_at)}</p>
                       </div>
                     </TableCell>
                     <TableCell>

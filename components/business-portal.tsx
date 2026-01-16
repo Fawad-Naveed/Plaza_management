@@ -47,8 +47,8 @@ export function BusinessPortal() {
         isMobile 
           ? 'ml-0' 
           : sidebarCollapsed 
-            ? 'ml-16' 
-            : 'ml-64'
+            ? 'ml-20' 
+            : 'ml-72'
       }`}>
         {/* Mobile Header */}
         {isMobile && (

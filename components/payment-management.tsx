@@ -32,6 +32,7 @@ import {
   type PendingPayment,
   type MeterReading,
 } from "@/lib/database"
+import { logActivity, ACTION_TYPES } from "@/lib/activity-logger"
 
 interface PaymentWithDetails extends Payment {
   receiptNumber: string
@@ -517,6 +518,18 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
       setLoading(true)
       setLoadingPendingPayments(true)
       await approvePendingPayment(selectedPendingPayment.id, 'Admin', reviewNotes)
+      
+      // Log activity for payment approval
+      await logActivity({
+        action_type: ACTION_TYPES.PAYMENT_APPROVED,
+        entity_type: 'payment',
+        entity_id: selectedPendingPayment.id,
+        entity_name: selectedPendingPayment.customerName || 'Unknown',
+        description: `Approved payment of PKR ${selectedPendingPayment.amount.toFixed(2)} from ${selectedPendingPayment.customerName} (${selectedPendingPayment.shopNumber})`,
+        amount: selectedPendingPayment.amount,
+        notes: reviewNotes || 'Payment approved'
+      })
+      
       setShowApprovalDialog(false)
       setSelectedPendingPayment(null)
       setReviewNotes('')
@@ -567,7 +580,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
 
   const renderBillPayment = () => (
     <div className="space-y-6">
-      <Card className="border-0">
+      <Card className="border-0 rounded-4xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Record Rent Payment</CardTitle>
         </CardHeader>
@@ -710,7 +723,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
         </CardContent>
       </Card>
 
-      <Card className="border-0">
+      <Card className="border-0 rounded-4xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Recent Payments</CardTitle>
         </CardHeader>
@@ -759,7 +772,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
   )
 
   const renderUnpaidBills = () => (
-    <Card className="border-0">
+    <Card className="border-0 rounded-4xl">
       <CardHeader>
         <CardTitle className="text-lg font-semibold flex items-center justify-between">
           Unpaid Bills
@@ -883,7 +896,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
   )
 
   const renderPaidBills = () => (
-    <Card className="border-0">
+    <Card className="border-0 rounded-4xl">
       <CardHeader>
         <CardTitle className="text-lg font-semibold flex items-center justify-between">
           Paid Bills
@@ -1004,7 +1017,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
 
   const renderPendingPayments = () => (
     <div className="space-y-6">
-      <Card className="border-0">
+      <Card className="border-0 rounded-4xl">
         <CardHeader>
           <CardTitle className="text-lg font-semibold flex items-center justify-between">
             Pending Payment Approvals
@@ -1222,7 +1235,7 @@ export function PaymentManagement({ activeSubSection }: PaymentManagementProps) 
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-black">{getSectionTitle()}</h1>
+      <h1 className="text-xl font-medium text-black">{getSectionTitle()}</h1>
       {renderContent()}
 
       {selectedReceipt && (

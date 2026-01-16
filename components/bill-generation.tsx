@@ -37,6 +37,7 @@ import { generateElectricityBillPDF, type BillData } from "@/lib/electricity-bil
 import { generateRentBillPDF, type RentBillData } from "@/lib/rent-bill-pdf"
 import { generateMaintenanceBillPDF, type MaintenanceBillData } from "@/lib/maintenance-bill-pdf"
 import { generateGasBillPDF, type GasBillData } from "@/lib/gas-bill-pdf"
+import { logActivity, ACTION_TYPES } from "@/lib/activity-logger"
 
 declare global {
   interface Window {
@@ -497,11 +498,24 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
             terms_conditions_text: availableTerms.filter(term => selectedTermsIds.includes(term.id)).map(term => `${term.title}: ${term.description || ''}`).join('\n\n') || null,
           }
 
-          const { error } = await clientDb.createBill(billData)
+          const { error, data: createdBill } = await clientDb.createBill(billData)
           if (error) {
             errors.push(`${business.name}: ${error.message}`)
           } else {
             successCount++
+            
+            // Log activity for each bill in bulk generation
+            if (createdBill) {
+              await logActivity({
+                action_type: ACTION_TYPES.BILL_GENERATED,
+                entity_type: 'bill',
+                entity_id: createdBill.id,
+                entity_name: business.name,
+                description: `Generated Rent bill ${billNumber} for ${business.name} (${business.shop_number}) - ${newBill.month} ${new Date().getFullYear()} (Bulk Generation)`,
+                amount: rentAmount,
+                notes: `Bill Number: ${billNumber}, Due Date: ${newBill.dueDate}`
+              })
+            }
           }
         } catch (err) {
           errors.push(`${business.name}: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -627,8 +641,26 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
           throw new Error(`Missing required fields: ${missingFields.join(', ')}`)
         }
         
-        const { error } = await clientDb.createBill(billData)
+        const { error, data: createdBill } = await clientDb.createBill(billData)
         if (error) throw error
+
+        // Log activity for single bill generation
+        if (createdBill) {
+          const billTypeStr = isRentManagement ? 'Rent' : 
+            isElectricityManagement ? 'Electricity' : 
+            isGasManagement ? 'Gas' : 
+            billToProcess.billType.charAt(0).toUpperCase() + billToProcess.billType.slice(1)
+          
+          await logActivity({
+            action_type: ACTION_TYPES.BILL_GENERATED,
+            entity_type: 'bill',
+            entity_id: createdBill.id,
+            entity_name: business.name,
+            description: `Generated ${billTypeStr} bill ${billNumber} for ${business.name} (${business.shop_number}) - ${billToProcess.month} ${currentYear}`,
+            amount: totalAmount,
+            notes: `Bill Number: ${billNumber}, Due Date: ${billToProcess.dueDate}`
+          })
+        }
 
         await loadBillData() // Reload data
 
@@ -1461,7 +1493,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
   }
 
   const renderGenerateBill = () => (
-    <Card className="border-0">
+    <Card className="border-0 rounded-4xl">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold">
@@ -1894,7 +1926,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
   )
 
   const renderBillListCard = () => (
-    <Card className="border-0">
+    <Card className="border-0 rounded-4xl">
       <CardHeader>
         <CardTitle className="text-lg font-semibold flex items-center justify-between">
           {isRentManagement && billsSubTab === "all" && "All Rent Bills"}
@@ -2502,7 +2534,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
       return (
         <div className="space-y-6">
           {/* Date Filter Controls */}
-          <Card className="border-0">
+          <Card className="border-0 rounded-4xl">
             <CardContent className="pt-6">
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1 md:max-w-xs">
@@ -2602,7 +2634,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
     return (
       <div className="space-y-6">
         {/* Date Filter Controls */}
-        <Card className="border-0">
+        <Card className="border-0 rounded-4xl">
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 md:max-w-xs">
@@ -2656,7 +2688,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
           </CardContent>
         </Card>
         
-        <Card className="border-0">
+        <Card className="border-0 rounded-4xl">
           <CardHeader>
             <CardTitle className="text-lg font-semibold flex items-center justify-between">
               All Bills
@@ -2781,7 +2813,7 @@ export function BillGeneration({ activeSubSection }: BillGenerationProps) {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-black">{getSectionTitle()}</h1>
+      <h1 className="text-xl font-medium text-black">{getSectionTitle()}</h1>
       {renderContent()}
 
       {/* View Bill Dialog */}

@@ -124,12 +124,12 @@ export default function VariableExpensesPage() {
   }).reduce((sum, e) => sum + e.amount, 0)
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 ">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Variable Expenses</h1>
-          <p className="text-muted-foreground mt-1">Track one-time and irregular expenses</p>
+          <h1 className="text-xl font-medium">Variable Expenses</h1>
+          <p className="text-md text-muted-foreground mt-1">Track one-time and irregular expenses</p>
         </div>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
@@ -155,7 +155,7 @@ export default function VariableExpensesPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card>
+        <Card className="rounded-4xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -166,7 +166,7 @@ export default function VariableExpensesPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-4xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">This Month</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -177,7 +177,7 @@ export default function VariableExpensesPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-4xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Expense Count</CardTitle>
             <Receipt className="h-4 w-4 text-muted-foreground" />
@@ -190,7 +190,7 @@ export default function VariableExpensesPage() {
       </div>
 
       {/* Filters */}
-      <Card className="mb-6">
+      <Card className="mb-6 rounded-4xl">
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
@@ -226,7 +226,7 @@ export default function VariableExpensesPage() {
       </Card>
 
       {/* Expenses List */}
-      <Card>
+      <Card className="rounded-4xl">
         <CardContent className="pt-6">
           {loading ? (
             <div className="flex justify-center items-center py-8">
